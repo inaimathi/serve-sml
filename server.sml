@@ -29,11 +29,9 @@ fun processServers _ [] acc = acc
 					 else processServers (d::ds) ss acc
 
 
-fun descs ss = map Socket.sockDesc ss
-
 fun selecting server clients timeout =
     let val { rds, exs, wrs } = Socket.select {
-		rds = (Socket.sockDesc server) :: (descs clients),
+		rds = (Socket.sockDesc server) :: (map Socket.sockDesc clients),
 		wrs = [], exs = [], timeout = timeout
 	    }
     in
