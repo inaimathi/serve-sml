@@ -1,29 +1,9 @@
 (* ***** Basic Utility *)
-fun each f [] = ()
-  | each f lst = let val (ln::lns) = lst
-		 in f ln; 
-		    each f lns
-		 end 
-
-fun stringToVecSlice str = 
-    Word8VectorSlice.full (Byte.stringToBytes str)
-
 fun fst (a, _) = a
 fun snd (_, b) = b
 
-(* ***** Socket-related utility *)
-val crlf = stringToVecSlice "\r\n"
-
-fun sendLine (sock, str) = 
-    let in 
-	Socket.sendVec(sock, str);
-	Socket.sendVec(sock, crlf)
-    end
-
-fun sendLines (sock, lns) = each (fn ln => sendLine (sock, ln)) lns
-
-fun sendString (sock, str) = 
-    Socket.sendVec(sock, stringToVecSlice str)
+fun consOpt NONE lst = lst
+  | consOpt (SOME e) lst = e::lst
 
 (* ***** Toy server *)
 fun sendHello sock = 
@@ -32,38 +12,40 @@ fun sendHello sock =
     in 
 	print "Sending...\n";
 	Socket.sendVec (sock, slc);
-	Socket.close sock
+	Socket.close sock;
+	NONE		     
     end
 
-(* fun processClient sock = sendHello sock; NONE *)
+fun processClients _ [] acc = acc
+  | processClients [] rest acc = rest @ acc
+  | processClients (d::ds) (s::ss) acc = if d = (Socket.sockDesc s)
+					 then processClients ds ss (consOpt (sendHello s) acc)
+					 else processClients (d::ds) ss acc
+
+fun processServers _ [] acc = acc
+  | processServers [] _ acc = acc
+  | processServers (d::ds) (s::ss) acc = if d = (Socket.sockDesc s)
+					 then processServers ds ss ((fst (Socket.accept s))::acc)
+					 else processServers (d::ds) ss acc
+
 
 fun descs ss = map Socket.sockDesc ss
 
-fun selecting server clients =
+fun selecting server clients timeout =
     let val { rds, exs, wrs } = Socket.select {
-		rds = descs [server],
-		wrs = [],
-		exs = descs clients,
-		timeout = NONE
+		rds = (Socket.sockDesc server) :: (descs clients),
+		wrs = [], exs = [], timeout = timeout
 	    }
     in
-	(rds, exs)
+	rds
     end
 
-(* fun acceptLoop serv clients = *)
-(*     let val (ss, cs) = selecting serv clients NONE *)
-(* 	val newCs = if ss = [] then [] else [Socket.accept serv] *)
-(* 	val next = processClients cs clients *)
-(*     in  *)
-(* 	sendHello c; *)
-(* 	acceptLoop serv clients *)
-(*     end *)
-
-fun acceptLoop serv =
-    let val (c, _) = Socket.accept serv
-    in 
-	sendHello c;
-	acceptLoop serv
+fun acceptLoop serv clients =
+    let val ready = selecting serv clients NONE
+	val newCs = processServers ready [serv] []
+	val next = processClients ready clients []
+    in
+	acceptLoop serv (newCs @ next)
     end
 
 fun serve port =
@@ -72,5 +54,5 @@ fun serve port =
        Socket.bind(s, INetSock.any port);
        Socket.listen(s, 5);
        print "Entering accept loop...\n";
-       acceptLoop s
+       acceptLoop s []
     end
