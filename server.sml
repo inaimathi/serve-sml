@@ -1,3 +1,27 @@
+datatype Method = GET | HEAD | POST | PUT | DELETE | TRACE | OPTIONS | CONNECT | PATCH
+type Request = { method : Method, resource : string, httpVersion : string,
+		 headers : (string * string) list, 
+		 parameters : (string * string) list }
+type Response = { httpVersion : string, responseType : string,
+		  headers : (string * string) list, 
+		  body : string }
+
+(* ***** Debugging utility *)
+fun print8 b = 
+    let val c = (Char.chr (Word8.toInt b))
+    in 
+	print (Char.toString c);
+	if c = #"\n" then print "\n   " else print "";
+	b
+    end 
+
+fun printReq vec =
+    let in
+	print "\n   ";
+	Word8Vector.map print8 vec;
+	()
+    end
+
 (* ***** Basic Utility *)
 fun fst (a, _) = a
 fun snd (_, b) = b
@@ -11,7 +35,12 @@ fun curry f = fn a => fn b => f(a,b)
 fun sendHello sock = 
     let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
+	fun got NONE = print "Received nothing..."
+	  | got (SOME vec) = printReq vec
+	val req = Socket.recvVecNB (sock, 1000) 
     in 
+	got req;
+	print "\n";
 	print "Sending...\n";
 	Socket.sendVec (sock, slc);
 	Socket.close sock;
@@ -61,5 +90,3 @@ fun serve port =
        print "Entering accept loop...\n";
        acceptLoop s []
     end
-
-
