@@ -5,6 +5,8 @@ fun snd (_, b) = b
 fun consOpt NONE lst = lst
   | consOpt (SOME e) lst = e::lst
 
+fun curry f = fn a => fn b => f(a,b)
+
 (* ***** Toy server *)
 fun sendHello sock = 
     let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
@@ -16,18 +18,23 @@ fun sendHello sock =
 	NONE		     
     end
 
-fun processClients _ [] acc = acc
-  | processClients [] rest acc = rest @ acc
-  | processClients (d::ds) (s::ss) acc = if d = (Socket.sockDesc s)
-					 then processClients ds ss (consOpt (sendHello s) acc)
-					 else processClients (d::ds) ss acc
+fun processReady f restFn (d::ds) (s::ss) acc = 
+    if d = (Socket.sockDesc s)
+    then processReady f restFn ds ss (f s acc)
+    else processReady f restFn (d::ds) ss acc
+  | processReady f restFn _ rest acc = restFn (rest, acc)
 
-fun processServers _ [] acc = acc
-  | processServers [] _ acc = acc
-  | processServers (d::ds) (s::ss) acc = if d = (Socket.sockDesc s)
-					 then processServers ds ss ((fst (Socket.accept s))::acc)
-					 else processServers (d::ds) ss acc
+fun processClients descs socks = 
+    let fun f s acc = consOpt (sendHello s) acc
+    in 
+	processReady f (op @) descs socks []
+    end
 
+fun processServers descs socks =
+    let fun f s acc = (fst (Socket.accept s))::acc
+    in 
+	processReady f snd descs socks []
+    end 
 
 fun selecting server clients timeout =
     let val { rds, exs, wrs } = Socket.select {
@@ -40,8 +47,8 @@ fun selecting server clients timeout =
 
 fun acceptLoop serv clients =
     let val ready = selecting serv clients NONE
-	val newCs = processServers ready [serv] []
-	val next = processClients ready clients []
+	val newCs = processServers ready [serv]
+	val next = processClients ready clients
     in
 	acceptLoop serv (newCs @ next)
     end
@@ -54,3 +61,5 @@ fun serve port =
        print "Entering accept loop...\n";
        acceptLoop s []
     end
+
+
