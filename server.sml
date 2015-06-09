@@ -7,29 +7,11 @@ type Response = { httpVersion : string, responseType : string,
 		  body : string }
 
 (* ***** Dummy Parser *)
-
 fun httpParse (arr : Word8Array.array) =
     { method = GET, resource = "/test", httpVersion = "1.1"
       , headers = [("Content-type", "mumble"), ("Content-length", "boogle")]
       , parameters = [("foo", "1"), ("bar", "2"), ("baz", "3")]
     } : Request
-
-(* ***** Debugging utility *)
-fun print8 b = 
-    let val c = (Char.chr (Word8.toInt b))
-    in 
-	print (Char.toString c);
-	if c = #"\n" then print "\n   " else print "";
-	()
-    end 
-
-fun printBuf {fill, buf} =
-    let val slc = Word8ArraySlice.slice (buf, 0, SOME (!fill))
-    in
-	print "\n   ";
-	Word8ArraySlice.app print8 slc;
-	()
-    end
 
 (* ***** Basic Utility *)
 fun fst (a, _) = a
@@ -45,11 +27,13 @@ fun sendHello sock =
     let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
 	fun got NONE = print "Received nothing..."
-	  | got (SOME b) = printBuf b
+	  | got (SOME b) = DefaultBuffer.printBuffer b
 	val buf = DefaultBuffer.new 2000
 	val req = DefaultBuffer.readInto buf sock
     in 
-	got req;
+	if req
+	then printBuf buf
+	else print "Received nothing...";
 	print "\n";
 	print "Sending...\n";
 	Socket.sendVec (sock, slc);

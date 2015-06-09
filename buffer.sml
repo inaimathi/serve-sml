@@ -1,10 +1,10 @@
 signature BUFFER =
   sig
       type Buffer
-      val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> Buffer option
+      val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> bool
       val isTerminated : Buffer -> bool
-      val test_isTerminated : unit -> Word8Array.elem * bool
       val new : int -> Buffer
+      val printBuffer : Buffer -> unit
   end 
 
 structure DefaultBuffer : BUFFER =
@@ -17,16 +17,6 @@ structure DefaultBuffer : BUFFER =
 	  (!fill >= 4) andalso (chk #"\r" 4) andalso (chk #"\n" 3) andalso (chk #"\r" 2) andalso (chk #"\n" 1)
       end
 
-  fun test_isTerminated () =
-      let val arr = map (Word8.fromInt o Char.ord) (String.explode "Testing \r\n\r\n ")
-	  val b = { fill = ref 12, buf = Word8Array.fromList arr}
-      in 
-	  (Word8Array.sub (#buf b, !(#fill b)), isTerminated b)
-      end
-
-  fun new initSize = 
-      { fill= ref 0, buf= Word8Array.array (initSize, Word8.fromInt 0) }
-
   fun readInto (buffer : Buffer) sock = 
       let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (#buf buffer, !(#fill buffer), SOME 1))
 	  fun bump NONE = ()
@@ -34,9 +24,29 @@ structure DefaultBuffer : BUFFER =
       in 
 	  bump i;
 	  if isTerminated buffer
-	  then SOME buffer
+	  then true
 	  else if i = NONE
-	  then NONE
+	  then false
 	  else readInto buffer sock
+      end
+
+  fun new initSize = 
+      { fill= ref 0, buf= Word8Array.array (initSize, Word8.fromInt 0) }
+
+
+
+  fun printBuffer {fill, buf} =
+      let val slc = Word8ArraySlice.slice (buf, 0, SOME (!fill))
+	  fun printByte bt = 
+	      let val chr = (Char.chr (Word8.toInt bt))
+	      in 
+		  print (Char.toString chr);
+		  if chr = #"\n" then print "\n   " else print "";
+		  ()
+	      end 
+      in
+	  print "\n   ";
+	  Word8ArraySlice.app printByte slc;
+	  ()
       end
   end
