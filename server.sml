@@ -6,34 +6,13 @@ type Response = { httpVersion : string, responseType : string,
 		  headers : (string * string) list, 
 		  body : string }
 
-(* ***** Buffering machinery *)
-type Buffer = { fill : int ref, buf : Word8Array.array }
+(* ***** Dummy Parser *)
 
-fun test_isTerminated () =
-    let val arr = map (Word8.fromInt o Char.ord) (String.explode "Testing \r\n\r\n ")
-	val b = { fill = ref 12, buf = Word8Array.fromList arr}
-    in 
-	(Word8Array.sub (#buf b, !(#fill b)), isTerminated b)
-    end
-
-fun isTerminated {fill, buf} = 
-    let fun chk c i = (Word8.fromInt (Char.ord c)) = (Word8Array.sub (buf, !fill - i))
-    in 
-	(!fill >= 4) andalso (chk #"\r" 4) andalso (chk #"\n" 3) andalso (chk #"\r" 2) andalso (chk #"\n" 1)
-    end
-
-fun readInto (buffer : Buffer) sock = 
-    let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (#buf buffer, !(#fill buffer), SOME 1))
-	fun bump NONE = ()
-	  | bump (SOME n) = (#fill buffer := (!(#fill buffer) + n); ())
-    in 
-	bump i;
-	if isTerminated buffer
-	then SOME buffer
-	else if i = NONE
-	then NONE
-	else readInto buffer sock
-    end
+fun httpParse (arr : Word8Array.array) =
+    { method = GET, resource = "/test", httpVersion = "1.1"
+      , headers = [("Content-type", "mumble"), ("Content-length", "boogle")]
+      , parameters = [("foo", "1"), ("bar", "2"), ("baz", "3")]
+    } : Request
 
 (* ***** Debugging utility *)
 fun print8 b = 
@@ -52,11 +31,6 @@ fun printBuf {fill, buf} =
 	()
     end
 
-(* fun printReq vec = *)
-(*     (print "\n   "; *)
-(*      Word8Vector.map print8 vec; *)
-(*      ()) *)
-
 (* ***** Basic Utility *)
 fun fst (a, _) = a
 fun snd (_, b) = b
@@ -72,8 +46,8 @@ fun sendHello sock =
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
 	fun got NONE = print "Received nothing..."
 	  | got (SOME b) = printBuf b
-	val buf = { fill= ref 0, buf= Word8Array.array (2000, Word8.fromInt 0) }
-	val req = readInto buf sock
+	val buf = DefaultBuffer.new 2000
+	val req = DefaultBuffer.readInto buf sock
     in 
 	got req;
 	print "\n";

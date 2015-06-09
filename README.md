@@ -36,7 +36,7 @@ We'll want to be able to customize
 - The first two can be module-level
 	- we'll define a `DefaultBuffer` and `DefaultParser` struct with a minimal interface, pass them into the `HTTPServer` struct so that they can be readily replaced.
 - The third and fourth are changes to the input of `HTTPServer.serve`.
-	- Instead of `(int -> ())`, it'll be `([int] -> (int -> Request -> socket -> ()) -> ())`. That is, a list of ports to listen on, and a function that takes a port, a `Request` and the client socket, and does something.
+	- Instead of `(int -> ())`, it'll be `([int] -> (int -> Request -> socket -> socket option)) -> ())`. That is, a list of ports to listen on, and a function that takes a port, a `Request` and the client socket, and does something.
 	- Should we restrict what it can do with a client socket? We'd do this by passing `write`/`read`/`close`/`register` callbacks instead of the socket itself. Not sure. I kind of feel like I should be presenting as general an interface as possible at this stage. We can always define a specializing function in a higher-level framework, but we won't necessarily be able to pry the socket back out if we go the other way.
 - We also might want to be able to change out the representation of request parameters. This would probably be another module-level input. However...
 	- Not sure I'd want to allow changing out `Request` representation piece-wise, or just allow a full `Request` representation to be passed in...
