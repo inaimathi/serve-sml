@@ -6,21 +6,56 @@ type Response = { httpVersion : string, responseType : string,
 		  headers : (string * string) list, 
 		  body : string }
 
+(* ***** Buffering machinery *)
+type Buffer = { fill : int ref, buf : Word8Array.array }
+
+fun test_isTerminated () =
+    let val arr = map (Word8.fromInt o Char.ord) (String.explode "Testing \r\n\r\n ")
+	val b = { fill = ref 12, buf = Word8Array.fromList arr}
+    in 
+	(Word8Array.sub (#buf b, !(#fill b)), isTerminated b)
+    end
+
+fun isTerminated {fill, buf} = 
+    let fun chk c i = (Word8.fromInt (Char.ord c)) = (Word8Array.sub (buf, !fill - i))
+    in 
+	(!fill >= 4) andalso (chk #"\r" 4) andalso (chk #"\n" 3) andalso (chk #"\r" 2) andalso (chk #"\n" 1)
+    end
+
+fun readInto (buffer : Buffer) sock = 
+    let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (#buf buffer, !(#fill buffer), SOME 1))
+	fun bump NONE = ()
+	  | bump (SOME n) = (#fill buffer := (!(#fill buffer) + n); ())
+    in 
+	bump i;
+	if isTerminated buffer
+	then SOME buffer
+	else if i = NONE
+	then NONE
+	else readInto buffer sock
+    end
+
 (* ***** Debugging utility *)
 fun print8 b = 
     let val c = (Char.chr (Word8.toInt b))
     in 
 	print (Char.toString c);
 	if c = #"\n" then print "\n   " else print "";
-	b
+	()
     end 
 
-fun printReq vec =
-    let in
+fun printBuf {fill, buf} =
+    let val slc = Word8ArraySlice.slice (buf, 0, SOME (!fill))
+    in
 	print "\n   ";
-	Word8Vector.map print8 vec;
+	Word8ArraySlice.app print8 slc;
 	()
     end
+
+(* fun printReq vec = *)
+(*     (print "\n   "; *)
+(*      Word8Vector.map print8 vec; *)
+(*      ()) *)
 
 (* ***** Basic Utility *)
 fun fst (a, _) = a
@@ -36,8 +71,9 @@ fun sendHello sock =
     let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
 	fun got NONE = print "Received nothing..."
-	  | got (SOME vec) = printReq vec
-	val req = Socket.recvVecNB (sock, 1000) 
+	  | got (SOME b) = printBuf b
+	val buf = { fill= ref 0, buf= Word8Array.array (2000, Word8.fromInt 0) }
+	val req = readInto buf sock
     in 
 	got req;
 	print "\n";
@@ -46,6 +82,7 @@ fun sendHello sock =
 	Socket.close sock;
 	NONE		     
     end
+    handle x => (Socket.close sock; raise x)
 
 fun processReady f restFn (d::ds) (s::ss) acc = 
     if d = (Socket.sockDesc s)
@@ -73,6 +110,7 @@ fun selecting server clients timeout =
     in
 	rds
     end
+    handle x => (Socket.close server; raise x)
 
 fun acceptLoop serv clients =
     let val ready = selecting serv clients NONE
@@ -81,12 +119,14 @@ fun acceptLoop serv clients =
     in
 	acceptLoop serv (newCs @ next)
     end
+    handle x => (Socket.close serv; raise x)
 
 fun serve port =
     let val s = INetSock.TCP.socket()
-    in Socket.Ctl.setREUSEADDR (s, true);
-       Socket.bind(s, INetSock.any port);
-       Socket.listen(s, 5);
-       print "Entering accept loop...\n";
-       acceptLoop s []
+    in 
+	Socket.Ctl.setREUSEADDR (s, true);
+	Socket.bind(s, INetSock.any port);
+	Socket.listen(s, 5);
+	print "Entering accept loop...\n";
+	acceptLoop s []
     end
