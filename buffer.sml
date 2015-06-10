@@ -31,6 +31,7 @@ structure DefaultBuffer : BUFFER =
 	  then Incomplete
 	  else readInto buffer sock
       end
+      handle _ => Errored
 
   fun new initSize = 
       { fill= ref 0, buf= Word8Array.array (initSize, Word8.fromInt 0) }

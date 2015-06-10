@@ -35,18 +35,12 @@ fun processClients _ _ [] = []
   | processClients _ [] rest = rest
   | processClients f (d::ds) ((c, buffer)::cs) = 
     if d = (Socket.sockDesc c)
-    then let val res = DefaultBuffer.readInto buffer c
-	 in 
-	     if res = Complete
-	     then let val open_p = f 8181 (httpParse (#buf buffer)) c
-		  in 
-		      if open_p = CLOSE
-		      then (Socket.close c;
-			    processClients f ds cs)
-		      else (c, DefaultBuffer.new 2000) :: (processClients f ds cs) 
-		  end
-	     else (c, buffer) :: (processClients f (d::ds) cs)
-	 end
+    then case DefaultBuffer.readInto buffer c of
+	     Complete => if CLOSE = f 8181 (httpParse (#buf buffer)) c
+			 then (Socket.close c; processClients f ds cs)
+			 else (c, DefaultBuffer.new 2000) :: (processClients f ds cs)
+	   | Incomplete => (c, buffer) :: (processClients f (d::ds) cs)
+	   | Errored    => (Socket.close c; (processClients f ds cs))
     else (c, buffer) :: (processClients f (d::ds) cs)
 
 fun processServers _ [] = []
