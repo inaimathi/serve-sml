@@ -19,9 +19,6 @@ fun httpParse (arr : Word8Array.array) =
 fun fst (a, _) = a
 fun snd (_, b) = b
 
-fun consOpt NONE lst = lst
-  | consOpt (SOME e) lst = e::lst
-
 fun curry f = fn a => fn b => f(a,b)
 
 (* ***** Toy server *)
