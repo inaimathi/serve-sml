@@ -12,7 +12,6 @@
 
 ##### Items
 
-- Simplify processServers and processClients
 - Start thinking about how you're going to define the HTTPServer struct
 - Actually parse incoming requests
 - Acutally generate responses based on them
