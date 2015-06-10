@@ -12,13 +12,9 @@
 
 ##### Items
 
-- `processServers` should be returning a list of `(Buffer, sock)` instead of plain list of `sock`
-- `processClients` should be calling `readInto` on the input, then checking buffer status.
-	- `complete`: parse and pass result to handler
-	- `incomplete`: cons the `(Buffer, sock)` pair back onto the waiting list
-	- `too_big`/`too_old`/`too_needy`: send the appropriate HTTP error, close the socket and don't cons it back to the waiting list
-- `processClients`, `acceptLoop` and `serve` need to accept a handler (a `(socket -> Request -> ())` function (possibly returning something else, if we want the handler to decide whether the socket should be left open or not) in addition to their other arguments
-- `sendHello` needs to become a handler
+- Simplify processServers and processClients
+- Start thinking about how you're going to define the HTTPServer struct
+- Actually parse incoming requests
 
 ##### Musings
 

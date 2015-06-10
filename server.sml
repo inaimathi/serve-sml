@@ -6,6 +6,8 @@ type Response = { httpVersion : string, responseType : string,
 		  headers : (string * string) list, 
 		  body : string }
 
+datatype SockAction = CLOSE | LEAVE_OPEN
+
 (* ***** Dummy Parser *)
 fun httpParse (arr : Word8Array.array) =
     { method = GET, resource = "/test", httpVersion = "1.1"
@@ -23,42 +25,44 @@ fun consOpt NONE lst = lst
 fun curry f = fn a => fn b => f(a,b)
 
 (* ***** Toy server *)
-fun sendHello sock = 
+fun helloServer port request socket =
     let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
-	fun got NONE = print "Received nothing..."
-	  | got (SOME b) = DefaultBuffer.printBuffer b
-	val buf = DefaultBuffer.new 2000
-	val req = DefaultBuffer.readInto buf sock
-    in 
-	if req
-	then printBuf buf
-	else print "Received nothing...";
-	print "\n";
+    in
 	print "Sending...\n";
-	Socket.sendVec (sock, slc);
-	Socket.close sock;
-	NONE		     
+	Socket.sendVec (socket, slc);
+	CLOSE
     end
-    handle x => (Socket.close sock; raise x)
 
-fun processReady f restFn (d::ds) (s::ss) acc = 
+fun processClients _ _ [] = []
+  | processClients _ [] rest = rest
+  | processClients f (d::ds) ((c, buffer)::cs) = 
+    if d = (Socket.sockDesc c)
+    then let val res = DefaultBuffer.readInto buffer c
+	 in 
+	     if res = Complete
+	     then let val open_p = f 8181 (httpParse (#buf buffer)) c
+		  in 
+		      if open_p = CLOSE
+		      then (Socket.close c;
+			    processClients f ds cs)
+		      else (c, DefaultBuffer.new 2000) :: (processClients f ds cs) 
+		  end
+	     else (c, buffer) :: (processClients f (d::ds) cs)
+	 end
+    else (c, buffer) :: (processClients f (d::ds) cs)
+
+fun processServers _ [] = []
+  | processServers [] _ = []
+  | processServers (d::ds) (s::ss) = 
     if d = (Socket.sockDesc s)
-    then processReady f restFn ds ss (f s acc)
-    else processReady f restFn (d::ds) ss acc
-  | processReady f restFn _ rest acc = restFn (rest, acc)
-
-fun processClients descs socks = 
-    let fun f s acc = consOpt (sendHello s) acc
-    in 
-	processReady f (op @) descs socks []
-    end
-
-fun processServers descs socks =
-    let fun f s acc = (fst (Socket.accept s))::acc
-    in 
-	processReady f snd descs socks []
-    end 
+    then let val c = fst (Socket.accept s)
+	     val buf = DefaultBuffer.new 2000
+	 in 
+	     (c, buf) :: (processServers ds ss)
+	 end
+    else processServers (d::ds) ss
+    
 
 fun selecting server clients timeout =
     let val { rds, exs, wrs } = Socket.select {
@@ -70,21 +74,21 @@ fun selecting server clients timeout =
     end
     handle x => (Socket.close server; raise x)
 
-fun acceptLoop serv clients =
-    let val ready = selecting serv clients NONE
+fun acceptLoop serv clients serverFn =
+    let val ready = selecting serv (map fst clients) NONE
 	val newCs = processServers ready [serv]
-	val next = processClients ready clients
+	val next = processClients serverFn ready clients
     in
-	acceptLoop serv (newCs @ next)
+	acceptLoop serv (newCs @ next) serverFn
     end
     handle x => (Socket.close serv; raise x)
 
-fun serve port =
+fun serve port serverFn =
     let val s = INetSock.TCP.socket()
     in 
 	Socket.Ctl.setREUSEADDR (s, true);
 	Socket.bind(s, INetSock.any port);
 	Socket.listen(s, 5);
 	print "Entering accept loop...\n";
-	acceptLoop s []
+	acceptLoop s [] serverFn
     end

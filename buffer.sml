@@ -1,7 +1,9 @@
+datatype BufferStatus = Complete | Incomplete | Errored
+
 signature BUFFER =
   sig
       type Buffer
-      val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> bool
+      val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> BufferStatus
       val isTerminated : Buffer -> bool
       val new : int -> Buffer
       val printBuffer : Buffer -> unit
@@ -24,16 +26,14 @@ structure DefaultBuffer : BUFFER =
       in 
 	  bump i;
 	  if isTerminated buffer
-	  then true
+	  then Complete
 	  else if i = NONE
-	  then false
+	  then Incomplete
 	  else readInto buffer sock
       end
 
   fun new initSize = 
       { fill= ref 0, buf= Word8Array.array (initSize, Word8.fromInt 0) }
-
-
 
   fun printBuffer {fill, buf} =
       let val slc = Word8ArraySlice.slice (buf, 0, SOME (!fill))
