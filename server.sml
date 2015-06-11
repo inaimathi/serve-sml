@@ -8,6 +8,10 @@ datatype SockAction = CLOSE | LEAVE_OPEN
 fun fst (a, _) = a
 fun snd (_, b) = b
 
+fun a_ (a, _, _) = a
+fun b_ (_, b, _) = b
+fun c_ (_, _, c) = c
+
 fun curry f = fn a => fn b => f(a,b)
 
 fun each f [] = ()
@@ -44,12 +48,11 @@ fun helloServer (request : Request) socket =
     end
 
 (* ***** Toy server *)
-
 fun processClients f descriptors sockBufferPairs =
     let fun recur _ [] = []
 	  | recur [] rest = rest
 	  | recur (d::ds) ((c,buffer)::cs) = 
-	    if d = (Socket.sockDesc c)
+	    if Socket.sameDesc (d, Socket.sockDesc c)
 	    then case DefaultBuffer.readInto buffer c of
 		     Complete => let in
 				     DefaultBuffer.printBuffer buffer;
@@ -67,7 +70,7 @@ fun processClients f descriptors sockBufferPairs =
 fun processServers _ [] = []
   | processServers [] _ = []
   | processServers (d::ds) (s::ss) = 
-    if d = (Socket.sockDesc s)
+    if Socket.sameDesc (d, Socket.sockDesc s)
     then let val c = fst (Socket.accept s)
 	     val buf = DefaultBuffer.new 2000
 	 in 

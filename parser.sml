@@ -58,17 +58,33 @@ structure DefaultParser : HTTPPARSER =
 	      recur 0 0 lst []
 	  end
 
+      fun parseParams slc =
+	  let val pairs = tokens "&" slc
+  	      fun toPair [k, v] = (sliceToStr k, sliceToStr v)
+  		| toPair _ = raise Fail "Invalid parameter"
+	  in
+  	      map (toPair o tokens "=") pairs
+	  end
+
   in
   fun parse slc =
-      let val (req :: rest) = tokens "\r\n" slc
+      let val (req, rest) = case tokens "\r\n" slc of
+				(r :: rs) => (r, rs)
+			      | _ => raise Fail "Invalid request"
 	  fun toHdr [k, v] = (sliceToStr k, sliceToStr v)
 	    | toHdr _ = raise Fail "Invalid header"
-	  fun toReq [m, uri, ver] hdrs = { method=m, resource=uri, httpVersion=ver,
-					   headers= map (fn h => toHdr (tokens ": " h)) hdrs,
-					   parameters=[]}
+	  fun toReq [m, uri, ver] hdrs = 
+	      let val (resource, args) = case tokens "?" uri of
+		  			     [rawUri, ps] => (rawUri, parseParams ps)
+		  			   | [rawUri] => (rawUri, [])
+					   | _ => raise Fail "Invalid resource specifier"
+	      in { method=sliceToStr m, resource=sliceToStr resource, httpVersion=sliceToStr ver,
+		   headers= map (fn h => toHdr (tokens ": " h)) hdrs,
+		   parameters=args }
+	      end
 	    | toReq _ _ = raise Fail "Invalid request line"
       in 
-	  ((toReq (map sliceToStr (tokens " " req)) rest) : Request)
+	  ((toReq (tokens " " req) rest) : Request)
       end
   end
   end
