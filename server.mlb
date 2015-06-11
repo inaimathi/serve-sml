@@ -2,6 +2,7 @@ local
     /usr/lib/mlton/sml/basis/basis.mlb
     buffer.sml
     parser.sml
-in
     server.sml
+in
+    main.sml
 end
