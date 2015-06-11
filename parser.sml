@@ -6,6 +6,10 @@ signature HTTPPARSER =
   sig
       (* type Request *)
       val parse : Word8ArraySlice.slice -> Request
+      val parseParams : Word8ArraySlice.slice -> (string * string) list
+      val tokens : string -> Word8ArraySlice.slice -> Word8ArraySlice.slice list
+      val sliceToStr : Word8ArraySlice.slice -> string
+      val strToSlice : string -> Word8ArraySlice.slice
       (* val header : Request -> string -> string *)
       (* val setHeader : Request -> string -> string -> Request *)
       (* val param : Request -> string -> string *)
@@ -27,46 +31,44 @@ structure DefaultParser : HTTPPARSER =
 		      recur ((String.size str) - 1)
 		  end 
 
-      fun sliceToStr slice = 
-	  let val len = Word8ArraySlice.length slice
-	      fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
-	  in 
-	      String.implode (List.tabulate (len, f))
-	  end
-
-      fun tokens sep arr =
-	  let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)
-	      val sepLen = String.size sep
-	      fun ct mark i = SOME ((i - mark) - sepLen)
-	      val len = Word8ArraySlice.length arr
-	      fun collect mark i sepLen acc = 
-		  if i > (mark + sepLen)
-		  then let val sub = Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen))
-		       in 
-			   if matches sep sub
-			   then acc
-			   else sub::acc
-		       end
-		  else acc
-	      fun recur mark i [] acc = recur i i lst (collect mark i sepLen acc)
-		| recur mark i (b::bs) acc = if i = len
-					     then List.rev (collect mark i 0 acc)
-					     else if b = (Word8ArraySlice.sub (arr, i))
-					     then recur mark (i+1) bs acc
-					     else recur mark (i+1) lst acc
-	  in 
-	      recur 0 0 lst []
-	  end
-
-      fun parseParams slc =
-	  let val pairs = tokens "&" slc
-  	      fun toPair [k, v] = (sliceToStr k, sliceToStr v)
-  		| toPair _ = raise Fail "Invalid parameter"
-	  in
-  	      map (toPair o tokens "=") pairs
-	  end
-
   in
+  fun strToSlice str = (Word8ArraySlice.full (Word8Array.fromList (map (Word8.fromInt o Char.ord) (String.explode str))))
+  fun sliceToStr slice = 
+      let val len = Word8ArraySlice.length slice
+	  fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
+      in 
+	  String.implode (List.tabulate (len, f))
+      end
+
+  fun tokens sep arr =
+      let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)
+	  val sepLen = String.size sep
+	  val len = Word8ArraySlice.length arr
+	  fun collect mark i sepLen acc = 
+	      if i > (mark + sepLen)
+	      then let val sub = Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen))
+		   in 
+		       sub::acc
+		   end
+	      else acc
+	  fun recur mark i [] acc = recur i i lst (collect mark i sepLen acc)
+	    | recur mark i (b::bs) acc = if i = len
+					 then List.rev (collect mark i 0 acc)
+					 else if b = (Word8ArraySlice.sub (arr, i))
+					 then recur mark (i+1) bs acc
+					 else recur mark (i+1) lst acc
+      in 
+	  recur 0 0 lst []
+      end
+
+  fun parseParams slc =
+      let val pairs = tokens "&" slc
+  	  fun toPair [k, v] = (sliceToStr k, sliceToStr v)
+  	    | toPair _ = raise Fail "Invalid parameter"
+      in
+  	  map (toPair o tokens "=") pairs
+      end
+
   fun parse slc =
       let val (req, rest) = case tokens "\r\n" slc of
 				(r :: rs) => (r, rs)
