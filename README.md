@@ -12,9 +12,13 @@
 
 ##### Items
 
-- Start writing responses based on `Response` structures
+- start parsing parameters out into `(k, v)`s
+- Think about what it would take to
+	1. Move `Request` fully into the `Parser` struct
+	2. Still retain the ability to do everything you want to do with requests
 - Start thinking about how you're going to define the HTTPServer struct
 - Think about growing buffers
+	- easy way is just generating a new, larger buffer and copying
 
 ##### Musings
 

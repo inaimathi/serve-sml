@@ -2,12 +2,19 @@ type Request = { method : string, resource : string, httpVersion : string,
 		 headers : (string * string) list, 
 		 parameters : (string * string) list }
 
-signature HTTPParser =
+signature HTTPPARSER =
   sig
+      (* type Request *)
       val parse : Word8ArraySlice.slice -> Request
+      (* val header : Request -> string -> string *)
+      (* val setHeader : Request -> string -> string -> Request *)
+      (* val param : Request -> string -> string *)
+      (* val addParam : Request -> string -> string -> Request *)
+      (* val method : Request -> string *)
+      (* val resource : Request -> string *)
   end
 
-structure DefaultParser : HTTPParser =
+structure DefaultParser : HTTPPARSER =
   struct
   local
       fun matches str arr =
@@ -26,7 +33,7 @@ structure DefaultParser : HTTPParser =
 	  in 
 	      String.implode (List.tabulate (len, f))
 	  end
-	      
+
       fun tokens sep arr =
 	  let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)
 	      val sepLen = String.size sep
@@ -50,7 +57,8 @@ structure DefaultParser : HTTPParser =
 	  in 
 	      recur 0 0 lst []
 	  end
-  in 
+
+  in
   fun parse slc =
       let val (req :: rest) = tokens "\r\n" slc
 	  fun toHdr [k, v] = (sliceToStr k, sliceToStr v)
