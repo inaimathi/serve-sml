@@ -12,9 +12,8 @@
 
 ##### Items
 
+- Start writing responses based on `Response` structures
 - Start thinking about how you're going to define the HTTPServer struct
-- Actually parse incoming requests
-- Acutally generate responses based on them
 - Think about growing buffers
 
 ##### Musings

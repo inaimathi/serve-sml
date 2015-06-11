@@ -1,5 +1,4 @@
-datatype Method = GET | HEAD | POST | PUT | DELETE | TRACE | OPTIONS | CONNECT | PATCH
-type Request = { method : Method, resource : string, httpVersion : string,
+type Request = { method : string, resource : string, httpVersion : string,
 		 headers : (string * string) list, 
 		 parameters : (string * string) list }
 type Response = { httpVersion : string, responseType : string,
@@ -8,13 +7,6 @@ type Response = { httpVersion : string, responseType : string,
 
 datatype SockAction = CLOSE | LEAVE_OPEN
 
-(* ***** Dummy Parser *)
-fun httpParse (arr : Word8Array.array) =
-    { method = GET, resource = "/test", httpVersion = "1.1"
-      , headers = [("Content-type", "mumble"), ("Content-length", "boogle")]
-      , parameters = [("foo", "1"), ("bar", "2"), ("baz", "3")]
-    } : Request
-
 (* ***** Basic Utility *)
 fun fst (a, _) = a
 fun snd (_, b) = b
@@ -22,8 +14,9 @@ fun snd (_, b) = b
 fun curry f = fn a => fn b => f(a,b)
 
 (* ***** Toy server *)
-fun helloServer port request socket =
-    let val res = "HTTP/1.1 200 OK\r\nContent-Length: 14\r\n\r\nHello from ML!\r\n\r\n"
+fun helloServer port (request : Request) socket =
+    let val body = "You asked for '" ^ (#resource request) ^ "' on port " ^ (Int.toString port) ^ "..."
+	val res = "HTTP/1.1 200 OK\r\nContent-Length: " ^ (Int.toString (String.size body)) ^ "\r\n\r\n" ^ body ^ "\r\n\r\n"
 	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
     in
 	print "Sending...\n";
@@ -36,12 +29,16 @@ fun processClients _ _ [] = []
   | processClients f (d::ds) ((c, buffer)::cs) = 
     if d = (Socket.sockDesc c)
     then case DefaultBuffer.readInto buffer c of
-	     Complete => if CLOSE = f 8181 (httpParse (#buf buffer)) c
-			 then (Socket.close c; processClients f ds cs)
-			 else (c, DefaultBuffer.new 2000) :: (processClients f ds cs)
+	     Complete => let in
+			     DefaultBuffer.printBuffer buffer;
+			     if CLOSE = f 8181 (DefaultParser.parse (DefaultBuffer.toSlice buffer)) c
+			     then (Socket.close c; processClients f ds cs)
+			     else (c, DefaultBuffer.new 2000) :: (processClients f ds cs)
+			 end
 	   | Incomplete => (c, buffer) :: (processClients f (d::ds) cs)
 	   | Errored    => (Socket.close c; (processClients f ds cs))
     else (c, buffer) :: (processClients f (d::ds) cs)
+
 
 fun processServers _ [] = []
   | processServers [] _ = []
