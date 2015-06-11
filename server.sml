@@ -1,6 +1,3 @@
-type Request = { method : string, resource : string, httpVersion : string,
-		 headers : (string * string) list, 
-		 parameters : (string * string) list }
 type Response = { httpVersion : string, responseType : string,
 		  headers : (string * string) list, 
 		  body : string }
@@ -38,8 +35,8 @@ fun sendResponse sock {httpVersion, responseType, headers, body} =
     end
 
 (* ***** Dummy server *)
-fun helloServer port (request : Request) socket =
-    let val body = "You asked for '" ^ (#resource request) ^ "' on port " ^ (Int.toString port) ^ "..."
+fun helloServer (request : Request) socket =
+    let val body = "You asked for '" ^ (#resource request) ^ "' ..."
     in
 	print "Sending...\n";
 	(sendResponse socket (httpOK [] body));
@@ -47,20 +44,25 @@ fun helloServer port (request : Request) socket =
     end
 
 (* ***** Toy server *)
-fun processClients _ _ [] = []
-  | processClients _ [] rest = rest
-  | processClients f (d::ds) ((c, buffer)::cs) = 
-    if d = (Socket.sockDesc c)
-    then case DefaultBuffer.readInto buffer c of
-	     Complete => let in
-			     DefaultBuffer.printBuffer buffer;
-			     if CLOSE = f 8181 (DefaultParser.parse (DefaultBuffer.toSlice buffer)) c
-			     then (Socket.close c; processClients f ds cs)
-			     else (c, DefaultBuffer.new 2000) :: (processClients f ds cs)
-			 end
-	   | Incomplete => (c, buffer) :: (processClients f (d::ds) cs)
-	   | Errored    => (Socket.close c; (processClients f ds cs))
-    else (c, buffer) :: (processClients f (d::ds) cs)
+
+fun processClients f descriptors sockBufferPairs =
+    let fun recur _ [] = []
+	  | recur [] rest = rest
+	  | recur (d::ds) ((c,buffer)::cs) = 
+	    if d = (Socket.sockDesc c)
+	    then case DefaultBuffer.readInto buffer c of
+		     Complete => let in
+				     DefaultBuffer.printBuffer buffer;
+				     if CLOSE = f (DefaultParser.parse (DefaultBuffer.toSlice buffer)) c
+				     then (Socket.close c; recur ds cs)
+				     else (c, DefaultBuffer.new 2000) :: (recur ds cs)
+				 end
+		   | Incomplete => (c, buffer) :: (recur ds cs)
+		   | Errored => (Socket.close c; recur ds cs)
+	    else (c, buffer) :: (recur (d::ds) cs)
+    in 
+	recur descriptors sockBufferPairs
+    end
 
 fun processServers _ [] = []
   | processServers [] _ = []

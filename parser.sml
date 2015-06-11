@@ -1,3 +1,7 @@
+type Request = { method : string, resource : string, httpVersion : string,
+		 headers : (string * string) list, 
+		 parameters : (string * string) list }
+
 signature HTTPParser =
   sig
       val parse : Word8ArraySlice.slice -> Request
