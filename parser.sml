@@ -46,10 +46,7 @@ structure DefaultParser : HTTPPARSER =
 	  val len = Word8ArraySlice.length arr
 	  fun collect mark i sepLen acc = 
 	      if i > (mark + sepLen)
-	      then let val sub = Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen))
-		   in 
-		       sub::acc
-		   end
+	      then (Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen)))::acc
 	      else acc
 	  fun recur mark i [] acc = recur i i lst (collect mark i sepLen acc)
 	    | recur mark i (b::bs) acc = if i = len
