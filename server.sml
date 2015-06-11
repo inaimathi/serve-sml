@@ -54,12 +54,9 @@ fun processClients f descriptors sockBufferPairs =
 	  | recur (d::ds) ((c,buffer)::cs) = 
 	    if Socket.sameDesc (d, Socket.sockDesc c)
 	    then case DefaultBuffer.readInto buffer c of
-		     Complete => let in
-				     DefaultBuffer.printBuffer buffer;
-				     if CLOSE = f (DefaultParser.parse (DefaultBuffer.toSlice buffer)) c
-				     then (Socket.close c; recur ds cs)
-				     else (c, DefaultBuffer.new 2000) :: (recur ds cs)
-				 end
+		     Complete => if CLOSE = f (DefaultParser.parse (DefaultBuffer.toSlice buffer)) c
+				 then (Socket.close c; recur ds cs)
+				 else (c, DefaultBuffer.new 2000) :: (recur ds cs)
 		   | Incomplete => (c, buffer) :: (recur ds cs)
 		   | Errored => (Socket.close c; recur ds cs)
 	    else (c, buffer) :: (recur (d::ds) cs)
