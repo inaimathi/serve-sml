@@ -16,7 +16,6 @@ structure DefaultParser : HTTPParser =
 		      recur ((String.size str) - 1)
 		  end 
 
-      fun strToSlice str = (Word8ArraySlice.full (Word8Array.fromList (map (Word8.fromInt o Char.ord) (String.explode str))))
       fun sliceToStr slice = 
 	  let val len = Word8ArraySlice.length slice
 	      fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
@@ -64,15 +63,3 @@ structure DefaultParser : HTTPParser =
 
 	      
       (* "GET / HTTP/1.1\r\nHost: localhost:8184\r\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:35.0) Gecko/20100101 Firefox/35.0\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.5\r\nAccept-Encoding: gzip, deflate\r\nCookie: __utma=111872281.1074254706.1427666251.1427666251.1427666251.1; __utmz=111872281.1427666251.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); C6gbrqqYAK3a1rKin6QaTAZDD5Oe0xnRat0RKe06ntufdcKUN12VtUXc8rfLrgw4\r\nConnection: keep-alive\r\n\r\n" *)
-
-      (* fun test str = *)
-      (* 	  let val slc = strToSlice str *)
-      (* 	      val (req :: rest) = tokens "\r\n" slc *)
-      (* 	      fun toHdr [k, v] = (sliceToStr k, sliceToStr v) *)
-      (* 		| toHdr _ = raise Fail "Invalid header" *)
-      (* 	      fun toReq [m, uri, ver] hdrs = { method=m, resource=uri, httpVersion=ver, *)
-      (* 					       headers= map (fn h => toHdr (tokens ": " h)) hdrs, *)
-      (* 					       parameters=[]} *)
-      (* 	  in  *)
-      (* 	      map sliceToStr (tokens " " req) *)
-      (* 	  end *)

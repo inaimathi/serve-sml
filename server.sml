@@ -13,17 +13,40 @@ fun snd (_, b) = b
 
 fun curry f = fn a => fn b => f(a,b)
 
-(* ***** Toy server *)
+fun each f [] = ()
+  | each f (e::es) = (f e; each f es)
+
+(* ***** Response generation *)
+fun httpOK extraHeaders body = 
+    {
+      httpVersion = "HTTP/1.1", responseType = "200 OK", 
+      headers = ("Content-Length", Int.toString (String.size body))::extraHeaders,
+      body = body
+    }
+
+fun sendResponse sock {httpVersion, responseType, headers, body} =
+    let val toSlc = Word8VectorSlice.full o Byte.stringToBytes
+	fun vec slc = Socket.sendVec (sock, slc)
+	val str = vec o toSlc
+	val crlf = toSlc "\r\n"
+	fun ln lst = (each str lst; vec crlf)
+    in 
+	ln [httpVersion, " ", responseType];
+	each (fn (k, v) => ln [k, ": ", v]) headers;
+	vec crlf;
+	str body
+    end
+
+(* ***** Dummy server *)
 fun helloServer port (request : Request) socket =
     let val body = "You asked for '" ^ (#resource request) ^ "' on port " ^ (Int.toString port) ^ "..."
-	val res = "HTTP/1.1 200 OK\r\nContent-Length: " ^ (Int.toString (String.size body)) ^ "\r\n\r\n" ^ body ^ "\r\n\r\n"
-	val slc = Word8VectorSlice.full (Byte.stringToBytes res)
     in
 	print "Sending...\n";
-	Socket.sendVec (socket, slc);
+	(sendResponse socket (httpOK [] body));
 	CLOSE
     end
 
+(* ***** Toy server *)
 fun processClients _ _ [] = []
   | processClients _ [] rest = rest
   | processClients f (d::ds) ((c, buffer)::cs) = 
@@ -39,7 +62,6 @@ fun processClients _ _ [] = []
 	   | Errored    => (Socket.close c; (processClients f ds cs))
     else (c, buffer) :: (processClients f (d::ds) cs)
 
-
 fun processServers _ [] = []
   | processServers [] _ = []
   | processServers (d::ds) (s::ss) = 
@@ -50,7 +72,6 @@ fun processServers _ [] = []
 	     (c, buf) :: (processServers ds ss)
 	 end
     else processServers (d::ds) ss
-    
 
 fun selecting server clients timeout =
     let val { rds, exs, wrs } = Socket.select {
