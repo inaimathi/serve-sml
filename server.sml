@@ -59,6 +59,7 @@ fun processClients f descriptors sockBufferPairs =
 				 else (c, DefaultBuffer.new 2000) :: (recur ds cs)
 		   | Incomplete => (c, buffer) :: (recur ds cs)
 		   | Errored => (Socket.close c; recur ds cs)
+		 handle Fail _ => (Socket.close c; recur ds cs)
 	    else (c, buffer) :: (recur (d::ds) cs)
     in 
 	recur descriptors sockBufferPairs
