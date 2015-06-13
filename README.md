@@ -29,7 +29,10 @@
 - Make buffers naively growable (again, no optimization; give people the hooks to make better buffers/parsers and just lay the groundwork)
 - Start thinking about the general handler structure
 	- routing needs to be handled (with path variables)
-	- defining handlers needs to be handled (hehe). Including setting headers, setting response type and sending a body easily (compute length from it and attach the header if not otherwise provided)
+	- defining handlers needs to be handled (hehe). Including
+		- setting headers,
+		- setting response type
+		- sending a body easily (take a string, compute length from it, attach the header if not otherwise provided and send out the response)
 
 ##### Musings
 

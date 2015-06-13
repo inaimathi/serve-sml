@@ -28,8 +28,8 @@ end
 
 functor SERVER (structure Buf : BUFFER; structure Par : PARSER) =
 struct
+  datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
   type Request = Par.Request
-  datatype SockAction = CLOSE | LEAVE_OPEN
   val header = Par.header
   val param = Par.param
   val mapParams = Par.mapParams
