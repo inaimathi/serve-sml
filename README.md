@@ -1,6 +1,25 @@
 # SML Server
 ###### An attempt at a web server in Standard ML
 
+## Usage
+
+### With `SML/NJ`
+
+- Start `sml` in the project directory
+- Enter `use "buffer.sml" ; use "parser.sml" ; use "server.sml" ; use "main.sml" ;`
+- Navigate to `http://localhost:8181`
+
+### With `mlton`
+
+- `cd` into the project directory
+- Enter `mlton server.mlb`
+- Run `./server 8181`
+- Navigate to `http://localhost:8181`
+
+
+## Status
+
+- Don't use it yet, it's nowhere near done
 - Now have minimally working "hello world" server
 - Still need to think about how I'm going to want to define handlers
 
@@ -9,7 +28,6 @@
 ##### Items
 
 - Functorify the server core
-- Move `Request` fully into the `Parser` struct (comments in parser.sml should suffice; forget about optimizing this parser in any way, shape or form. Just establish the )
 - Make buffers naively growable (again, no optimization; give people the hooks to make better buffers/parsers and just lay the groundwork)
 
 ##### Musings

@@ -71,6 +71,6 @@ fun serve port serverFn =
 	Socket.Ctl.setREUSEADDR (s, true);
 	Socket.bind(s, INetSock.any port);
 	Socket.listen(s, 5);
-	print "Listening on port " ^ (Int.toString port) ^ "...\n";
+	print ("Listening on port " ^ (Int.toString port) ^ "...\n");
 	acceptLoop s [] serverFn
     end
