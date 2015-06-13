@@ -1,4 +1,10 @@
+structure Serv = SERVER (structure Buf = DefaultBuffer; structure Par = DefaultHTTPParser);
+
 (* ***** Response generation *)
+type Response = { httpVersion : string, responseType : string,
+		  headers : (string * string) list, 
+		  body : string };
+
 fun httpOK extraHeaders body = 
     {
       httpVersion = "HTTP/1.1", responseType = "200 OK", 
@@ -20,12 +26,12 @@ fun sendResponse sock {httpVersion, responseType, headers, body} =
     end;
 
 (* ***** Dummy server *)
-fun helloServer (request : DefaultHTTPParser.Request) socket =
-    let val body = "You asked for '" ^ (DefaultHTTPParser.resource request) ^ "' ..."
+fun helloServer (request : Serv.Request) socket =
+    let val body = "You asked for '" ^ (Serv.resource request) ^ "' ..."
     in
 	print "Sending...\n";
 	(sendResponse socket (httpOK [] body));
-	CLOSE
+	Serv.CLOSE
     end;
 
 fun getPort (port::_) = 
@@ -36,4 +42,4 @@ fun getPort (port::_) =
     end
   | getPort _ = 8181;
 
-serve (getPort (CommandLine.arguments ())) helloServer ;
+Serv.serve (getPort (CommandLine.arguments ())) helloServer ;

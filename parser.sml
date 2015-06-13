@@ -1,17 +1,17 @@
 signature PARSER =
-  sig
-      type Request
-      val parse : Word8ArraySlice.slice -> Request
-      val header : Request -> string -> string option
-      val param : Request -> string -> string option
-      val mapParams : Request -> (string * string -> 'a) -> 'a list
-      val addParam : Request -> string -> string -> Request
-      val method : Request -> string
-      val resource : Request -> string
-  end
+sig
+    type Request
+    val parse : Word8ArraySlice.slice -> Request
+    val header : Request -> string -> string option
+    val param : Request -> string -> string option
+    val mapParams : Request -> (string * string -> 'a) -> 'a list
+    val addParam : Request -> string -> string -> Request
+    val method : Request -> string
+    val resource : Request -> string
+end
 
 structure DefaultHTTPParser : PARSER =
-  struct
+struct
   local
       fun matches str arr =
 	  ((String.size str) = (Word8ArraySlice.length arr)) 
@@ -100,4 +100,4 @@ structure DefaultHTTPParser : PARSER =
 	  ((toReq (tokens " " req) rest) : Request)
       end
   end
-  end
+end
