@@ -1,25 +1,16 @@
-type Request = { method : string, resource : string, httpVersion : string,
-		 headers : (string * string) list, 
-		 parameters : (string * string) list }
-
-signature HTTPPARSER =
+signature PARSER =
   sig
-      (* type Request *)
+      type Request
       val parse : Word8ArraySlice.slice -> Request
-      val parseParams : Word8ArraySlice.slice -> (string * string) list
-      val tokens : string -> Word8ArraySlice.slice -> Word8ArraySlice.slice list
-      val sliceToStr : Word8ArraySlice.slice -> string
-      val strToSlice : string -> Word8ArraySlice.slice
-      (* val header : Request -> string -> string *)
-      (* val setHeader : Request -> string -> string -> Request *)
-      (* val param : Request -> string -> string *)
-      (* val mapParams : Request -> (string -> 'a) -> 'a list *)
-      (* val addParam : Request -> string -> string -> Request *)
-      (* val method : Request -> string *)
-      (* val resource : Request -> string *)
+      val header : Request -> string -> string option
+      val param : Request -> string -> string option
+      val mapParams : Request -> (string * string -> 'a) -> 'a list
+      val addParam : Request -> string -> string -> Request
+      val method : Request -> string
+      val resource : Request -> string
   end
 
-structure DefaultParser : HTTPPARSER =
+structure DefaultHTTPParser : PARSER =
   struct
   local
       fun matches str arr =
@@ -32,40 +23,62 @@ structure DefaultParser : HTTPPARSER =
 		      recur ((String.size str) - 1)
 		  end 
 
+      fun strToSlice str = (Word8ArraySlice.full (Word8Array.fromList (map (Word8.fromInt o Char.ord) (String.explode str))))
+      fun sliceToStr slice = 
+	  let val len = Word8ArraySlice.length slice
+	      fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
+	  in 
+	      String.implode (List.tabulate (len, f))
+	  end
+
+      fun tokens sep arr =
+	  let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)
+	      val sepLen = String.size sep
+	      val len = Word8ArraySlice.length arr
+	      fun collect mark i sepLen acc = 
+		  if i > (mark + sepLen)
+		  then (Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen)))::acc
+		  else acc
+	      fun recur mark i [] acc = recur i i lst (collect mark i sepLen acc)
+		| recur mark i (b::bs) acc = if i = len
+					     then List.rev (collect mark i 0 acc)
+					     else if b = (Word8ArraySlice.sub (arr, i))
+					     then recur mark (i+1) bs acc
+					     else recur mark (i+1) lst acc
+	  in 
+	      recur 0 0 lst []
+	  end
+
+      fun parseParams slc =
+	  let val pairs = tokens "&" slc
+  	      fun toPair [k, v] = (sliceToStr k, sliceToStr v)
+  		| toPair _ = raise Fail "Invalid parameter"
+	  in
+  	      map (toPair o tokens "=") pairs
+	  end
+
+      fun lookup _ [] = NONE
+	| lookup key ((k : string, v :string)::rest) = 
+	  if key = k
+	  then SOME v
+	  else lookup key rest
+
   in
-  fun strToSlice str = (Word8ArraySlice.full (Word8Array.fromList (map (Word8.fromInt o Char.ord) (String.explode str))))
-  fun sliceToStr slice = 
-      let val len = Word8ArraySlice.length slice
-	  fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
-      in 
-	  String.implode (List.tabulate (len, f))
-      end
+  
+  type Request = { method : string, resource : string, httpVersion : string,
+		   headers : (string * string) list, 
+		   parameters : (string * string) list }
 
-  fun tokens sep arr =
-      let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)
-	  val sepLen = String.size sep
-	  val len = Word8ArraySlice.length arr
-	  fun collect mark i sepLen acc = 
-	      if i > (mark + sepLen)
-	      then (Word8ArraySlice.subslice (arr, mark, SOME ((i-mark)-sepLen)))::acc
-	      else acc
-	  fun recur mark i [] acc = recur i i lst (collect mark i sepLen acc)
-	    | recur mark i (b::bs) acc = if i = len
-					 then List.rev (collect mark i 0 acc)
-					 else if b = (Word8ArraySlice.sub (arr, i))
-					 then recur mark (i+1) bs acc
-					 else recur mark (i+1) lst acc
-      in 
-	  recur 0 0 lst []
-      end
+  fun header (req : Request) name = lookup name (#headers req)
+  fun param (req : Request) name = lookup name (#parameters req)
 
-  fun parseParams slc =
-      let val pairs = tokens "&" slc
-  	  fun toPair [k, v] = (sliceToStr k, sliceToStr v)
-  	    | toPair _ = raise Fail "Invalid parameter"
-      in
-  	  map (toPair o tokens "=") pairs
-      end
+  fun mapParams (req : Request) f = map f (#parameters req)
+  fun addParam {method, resource, httpVersion, headers, parameters } k v =
+      { method=method, resource=resource, httpVersion=httpVersion,
+	headers=headers, parameters= (k, v)::parameters}
+
+  fun method (req : Request) = #method req
+  fun resource (req : Request) = #resource req
 
   fun parse slc =
       let val (req, rest) = case tokens "\r\n" slc of
