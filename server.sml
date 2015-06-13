@@ -45,7 +45,7 @@ struct
 		  then case Buf.readInto buffer c of
 			   Complete => if CLOSE = f (Par.parse (Buf.toSlice buffer)) c
 				       then (Socket.close c; recur ds cs)
-				       else (c, Buf.new 2000) :: (recur ds cs)
+				       else (c, Buf.new 1000) :: (recur ds cs)
 			 | Incomplete => (c, buffer) :: (recur ds cs)
 			 | Errored => (Socket.close c; recur ds cs)
 				      handle Fail _ => (Socket.close c; recur ds cs)
@@ -59,7 +59,7 @@ struct
 	| processServers (d::ds) (s::ss) = 
 	  if Socket.sameDesc (d, Socket.sockDesc s)
 	  then let val c = fst (Socket.accept s)
-		   val buf = Buf.new 2000
+		   val buf = Buf.new 1000
 	       in 
 		   (c, buf) :: (processServers ds ss)
 	       end

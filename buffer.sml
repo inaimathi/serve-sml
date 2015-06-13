@@ -18,23 +18,30 @@ structure DefaultBuffer : BUFFER =
 	  in 
 	      (!fill >= 4) andalso (chk #"\r" 4) andalso (chk #"\n" 3) andalso (chk #"\r" 2) andalso (chk #"\n" 1)
 	  end
+
+      fun isFull {fill, buf} = (Word8Array.length (!buf)) = (!fill)
+
       fun grow {fill, buf} = 
 	  let val len = Word8Array.length (!buf)
 	      val newBuf = Word8Array.array (len * 2, Word8.fromInt 0)
 	  in 
 	      Word8Array.copy {di=0, dst=newBuf, src=(!buf)};
-	      buf := newBuf
+	      buf := newBuf;
+	      ()
 	  end
   in 
 
   fun readInto (buffer : Buffer) sock = 
-      let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!(#buf buffer), !(#fill buffer), SOME 1))
-      in 
-	  if isTerminated buffer
-	  then Complete
-	  else case i of
-		   NONE => Incomplete
-		 | SOME n => (#fill buffer := (!(#fill buffer) + n); readInto buffer sock)
+      let in
+	  if isFull buffer then grow buffer else ();
+	  let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!(#buf buffer), !(#fill buffer), SOME 1))
+	  in 
+	      if isTerminated buffer
+	      then Complete
+	      else case i of
+		       NONE => Incomplete
+		     | SOME n => (#fill buffer := (!(#fill buffer) + n); readInto buffer sock)
+	  end
       end
       handle _ => Errored
 

@@ -26,7 +26,7 @@
 
 ##### Items
 
-- Make buffers naively growable (again, no optimization; give people the hooks to make better buffers/parsers and just lay the groundwork)
+- Add age/length/retries restrictions to buffer struct/sig
 - Start thinking about the general handler structure
 	- routing needs to be handled (with path variables)
 	- defining handlers needs to be handled (hehe). Including
@@ -34,38 +34,20 @@
 		- setting response type
 		- sending a body easily (take a string, compute length from it, attach the header if not otherwise provided and send out the response)
 
-##### Musings
+##### Relevant Musings
 
-Usual structure.
-
-        buffer -> parse -> handleRequest
-
-1. Buffer collects bytes, emits `(socket, byte list)`
-2. Parse takes `byte list`, emits a `request` structure
-3. `handleRequest` takes a `socket -> request -> ()`, and writes a response to the socket
-
-The user of this library would need to hand over a `(uri, (string string map) -> byte vector) list` (the HTTP handlers table). We might want to customize
-
-- the HTTP parser
-- the routing
-- we might want to add SSE/session management (we can do that by transforming the incoming handler table)
-
-SO.
-
-We'll want to be able to customize
-
-1. The buffering strategy
-2. The parser
-3. The number of listening ports
-4. The handling function
-
-- The first two can be module-level
-	- we'll define a `DefaultBuffer` and `DefaultParser` struct with a minimal interface, pass them into the `HTTPServer` struct so that they can be readily replaced.
-- The third and fourth are changes to the input of `HTTPServer.serve`.
-	- Instead of `(int -> ())`, it'll be `([int] -> (int -> Request -> socket -> socket option)) -> ())`. That is, a list of ports to listen on, and a function that takes a port, a `Request` and the client socket, and does something.
-	- Should we restrict what it can do with a client socket? We'd do this by passing `write`/`read`/`close`/`register` callbacks instead of the socket itself. Not sure. I kind of feel like I should be presenting as general an interface as possible at this stage. We can always define a specializing function in a higher-level framework, but we won't necessarily be able to pry the socket back out if we go the other way.
-- We also might want to be able to change out the representation of request parameters. This would probably be another module-level input. However...
-	- Not sure I'd want to allow changing out `Request` representation piece-wise, or just allow a full `Request` representation to be passed in...
+- The basic server is now `structure`/`functor`-ified
+	- Because of the way it's done, this doesn't necessarily have to represent an HTTP server. This particular implementation happens to, but it seems like this could let you build a server for any stream-socket protocol. Not actually sure about "any", but it seems like it can do more than just HTTP.
+- Response-wise, we want to support (in descending order of priority)
+	- Standard HTTP responses
+	- SSE interaction (keep the socket off to the side, complete with channels, periodically send things to them)
+	- Websockets (keep sockets in the main listen loop, but do different things with them. Not sure how this is actually going to work, given that the main listener loop will always expect `\r\n` delimiters, it seems this would limit what kind of protocol you could set up. Do we need an arbitrary async read from handlers?)
+	- Static file serving
+	- Static directory-tree serving
+- It'd be nice if we had a baked-in async client that worked with the same main event-loop to let you make low-friction requests between servers
+- What we ultimately want to pass into `serve` is s function that does `(Request -> socket -> ServAction)`. Providing a simple and flexible way of constructing that function is going to be most of the rest of the work.
+- We'll want an easy way of associating routes (including path variables) with functions of `(Parameter list -> Response)`. Maybe even push that to `string` at the output (just the response body). Ditto for SSE sends to a particular channel. Arbitrary socket sends (`Websockets`) will be more involved and fine-grained, because they'll by definition depend on the application-specific message format being used.
+- Do we want routing to be a separate component entirely? Or just make the responder simple enough that the entire thing can be replaced? Every point of customization adds a little bit of extra complexity in terms of implementation, but I'm convinced we can still use plain `fun`s and `struct`s to present a simple interface.
 
 ### Test Data
 
