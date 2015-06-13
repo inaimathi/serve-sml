@@ -20,7 +20,7 @@ fun sendResponse sock {httpVersion, responseType, headers, body} =
     end;
 
 (* ***** Dummy server *)
-fun helloServer (request : Request) socket =
+fun helloServer (request : DefaultHTTPParser.Request) socket =
     let val body = "You asked for '" ^ (#resource request) ^ "' ..."
     in
 	print "Sending...\n";
