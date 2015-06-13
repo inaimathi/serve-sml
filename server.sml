@@ -17,37 +17,7 @@ fun curry f = fn a => fn b => f(a,b)
 fun each f [] = ()
   | each f (e::es) = (f e; each f es)
 
-(* ***** Response generation *)
-fun httpOK extraHeaders body = 
-    {
-      httpVersion = "HTTP/1.1", responseType = "200 OK", 
-      headers = ("Content-Length", Int.toString (String.size body))::extraHeaders,
-      body = body
-    }
-
-fun sendResponse sock {httpVersion, responseType, headers, body} =
-    let val toSlc = Word8VectorSlice.full o Byte.stringToBytes
-	fun vec slc = Socket.sendVec (sock, slc)
-	val str = vec o toSlc
-	val crlf = toSlc "\r\n"
-	fun ln lst = (each str lst; vec crlf)
-    in 
-	ln [httpVersion, " ", responseType];
-	each (fn (k, v) => ln [k, ": ", v]) headers;
-	vec crlf;
-	str body
-    end
-
-(* ***** Dummy server *)
-fun helloServer (request : Request) socket =
-    let val body = "You asked for '" ^ (#resource request) ^ "' ..."
-    in
-	print "Sending...\n";
-	(sendResponse socket (httpOK [] body));
-	CLOSE
-    end
-
-(* ***** Toy server *)
+(* ***** Server core *)
 fun processClients f descriptors sockBufferPairs =
     let fun recur _ [] = []
 	  | recur [] rest = rest
