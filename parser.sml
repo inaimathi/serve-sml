@@ -13,6 +13,7 @@ signature HTTPPARSER =
       (* val header : Request -> string -> string *)
       (* val setHeader : Request -> string -> string -> Request *)
       (* val param : Request -> string -> string *)
+      (* val mapParams : Request -> (string -> 'a) -> 'a list *)
       (* val addParam : Request -> string -> string -> Request *)
       (* val method : Request -> string *)
       (* val resource : Request -> string *)

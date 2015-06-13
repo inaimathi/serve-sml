@@ -1,24 +1,16 @@
 # SML Server
 ###### An attempt at a web server in Standard ML
 
-- Now have minimally working multi-client server using `Socket.select`
-- Need to think a bit about (these points will probably be related)
-	1. Along what dimensions we'd like to customize this server
-	2. How we'll write handlers
-	3. How to expose this functionality via structures
-
+- Now have minimally working "hello world" server
+- Still need to think about how I'm going to want to define handlers
 
 ### ToDo
 
 ##### Items
 
-- start parsing parameters out into `(k, v)`s
-- Think about what it would take to
-	1. Move `Request` fully into the `Parser` struct
-	2. Still retain the ability to do everything you want to do with requests
-- Start thinking about how you're going to define the HTTPServer struct
-- Think about growing buffers
-	- easy way is just generating a new, larger buffer and copying
+- Functorify the server core
+- Move `Request` fully into the `Parser` struct (comments in parser.sml should suffice; forget about optimizing this parser in any way, shape or form. Just establish the )
+- Make buffers naively growable (again, no optimization; give people the hooks to make better buffers/parsers and just lay the groundwork)
 
 ##### Musings
 
