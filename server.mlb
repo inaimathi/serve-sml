@@ -3,6 +3,7 @@ local
     buffer.sml
     parser.sml
     server.sml
+    router.sml
 in
     main.sml
 end

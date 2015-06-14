@@ -11,10 +11,11 @@ fun curry f = fn a => fn b => f(a,b)
 fun each f [] = ()
   | each f (e::es) = (f e; each f es)
 
+datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
+
 (* ***** Server core *)
 signature TCPSERVER =
 sig
-    type SockAction
     type Request
     val serve : int -> (Request -> (INetSock.inet,Socket.active Socket.stream) Socket.sock -> SockAction) -> 'u
 
@@ -26,9 +27,8 @@ sig
     val resource : Request -> string
 end
 
-functor SERVER (structure Buf : BUFFER; structure Par : PARSER) =
+functor SERVER (structure Buf : BUFFER; structure Par : PARSER) : TCPSERVER =
 struct
-  datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
   type Request = Par.Request
   val header = Par.header
   val param = Par.param

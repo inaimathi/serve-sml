@@ -48,6 +48,7 @@
 - What we ultimately want to pass into `serve` is s function that does `(Request -> socket -> ServAction)`. Providing a simple and flexible way of constructing that function is going to be most of the rest of the work.
 - We'll want an easy way of associating routes (including path variables) with functions of `(Parameter list -> Response)`. Maybe even push that to `string` at the output (just the response body). Ditto for SSE sends to a particular channel. Arbitrary socket sends (`Websockets`) will be more involved and fine-grained, because they'll by definition depend on the application-specific message format being used.
 - Do we want routing to be a separate component entirely? Or just make the responder simple enough that the entire thing can be replaced? Every point of customization adds a little bit of extra complexity in terms of implementation, but I'm convinced we can still use plain `fun`s and `struct`s to present a simple interface.
+- Do we need to be able to control whether a socket closes on a per-handler level? It seems like we might just need multiple handler types. Specifically, if we had something like `ChannelHandlers` that subscribed new sockets, `WSHandlers` that dealt with WebSockets, we could let everything else close (possibly based on incoming headers)
 
 ### Test Data
 

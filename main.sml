@@ -1,38 +1,13 @@
-structure Serv = SERVER (structure Buf = DefaultBuffer; structure Par = DefaultHTTPParser);
+structure Server = SERVER (structure Buf = DefaultBuffer; structure Par = DefaultHTTPParser);
+structure Route = BASICROUTER(structure Serv = Server);
 
-(* ***** Response generation *)
-type Response = { httpVersion : string, responseType : string,
-		  headers : (string * string) list, 
-		  body : string };
+fun simpleRes resCode body =
+    Route.httpRes resCode [] body CLOSE;
 
-fun httpOK extraHeaders body = 
-    {
-      httpVersion = "HTTP/1.1", responseType = "200 OK", 
-      headers = ("Content-Length", Int.toString (String.size body))::extraHeaders,
-      body = body
-    };
-
-fun sendResponse sock {httpVersion, responseType, headers, body} =
-    let val toSlc = Word8VectorSlice.full o Byte.stringToBytes
-	fun vec slc = Socket.sendVec (sock, slc)
-	val str = vec o toSlc
-	val crlf = toSlc "\r\n"
-	fun ln lst = (each str lst; vec crlf)
-    in 
-	ln [httpVersion, " ", responseType];
-	each (fn (k, v) => ln [k, ": ", v]) headers;
-	vec crlf;
-	str body
-    end;
-
-(* ***** Dummy server *)
-fun helloServer (request : Serv.Request) socket =
-    let val body = "You asked for '" ^ (Serv.resource request) ^ "' ..."
-    in
-	print "Sending...\n";
-	(sendResponse socket (httpOK [] body));
-	Serv.CLOSE
-    end;
+fun hello "GET" ["hello", name] _ = 
+    simpleRes "200 Ok" ("Hello there, " ^ name ^ "! I'm a server!")
+  | hello _ _ _ = 
+    simpleRes "404 Not Found" "Sorry; I don't know how to do that"
 
 fun getPort (port::_) = 
     let fun p (SOME n) = n
@@ -42,4 +17,4 @@ fun getPort (port::_) =
     end
   | getPort _ = 8181;
 
-Serv.serve (getPort (CommandLine.arguments ())) helloServer ;
+Server.serve (getPort (CommandLine.arguments ())) (Route.route hello) ;
