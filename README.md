@@ -28,6 +28,13 @@
 
 - Finish separating out the HTTP types and interactions into a separate struct
 	- This'll replace parse.sml, and should make interacting with the router a bit easier
+- Correct server behavior with regard to POST requests
+	- If there's a body, read it
+	- Do the appropriate thing depending on mimetype
+		- parse `application/json`
+		- destructure and add to parameters if `application/x-www-form-urlencoded`
+		- not *entirely* sure how to deal with `multipart/form-data`. It's [pretty complicated](www.w3.org/TR/html401/interact/forms.html#h-17.13.4) apparently, and it'll only really be used in situations where large files are sloshing around. You don't necessarily want all of it in memory for those situations. Maybe `readBody` is a reasonable thing?
+			- Looks like we'll want buffers to be a bit more complex. Keep a callback around to deal with whatever happens when the buffer "completes"? What would that look like?
 - Add age/length/retries restrictions to buffer struct/sig
 - Start thinking about the general handler structure
 	- routing needs to be handled (with path variables)

@@ -14,7 +14,7 @@ fun each f [] = ()
 datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
 
 (* ***** Server core *)
-signature TCPSERVER =
+signature HTTPSERVER =
 sig
     type Request
     val serve : int -> (Request -> (INetSock.inet,Socket.active Socket.stream) Socket.sock -> SockAction) -> 'u
@@ -25,9 +25,16 @@ sig
     val addParam : Request -> string -> string -> Request
     val method : Request -> string
     val resource : Request -> string
+
+    type Response
+    val resHeader : Response -> string -> string option
+    val body : Response -> string
+
+    val sendRes : ('a,Socket.active Socket.stream) Socket.sock -> Response -> unit
+    val sendReq : ('a,Socket.active Socket.stream) Socket.sock -> Request -> unit
 end
 
-functor SERVER (structure Buf : BUFFER; structure Par : PARSER) : TCPSERVER =
+functor SERVER (structure Buf : BUFFER; structure Par : HTTP) : HTTPSERVER =
 struct
   type Request = Par.Request
   val header = Par.header
@@ -36,6 +43,14 @@ struct
   val addParam = Par.addParam
   val method = Par.method
   val resource = Par.resource
+
+  type Response = Par.Response
+  val resHeader = Par.resHeader
+  val body = Par.body
+
+  val sendRes = Par.sendRes
+  val sendReq = Par.sendReq
+
   local
       fun processClients f descriptors sockBufferPairs =
 	  let fun recur _ [] = []
@@ -43,7 +58,7 @@ struct
 		| recur (d::ds) ((c,buffer)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then case Buf.readInto buffer c of
-			   Complete => if CLOSE = f (Par.parse (Buf.toSlice buffer)) c
+			   Complete => if CLOSE = f (Par.parseReq (Buf.toSlice buffer)) c
 				       then (Socket.close c; recur ds cs)
 				       else (c, Buf.new 1000) :: (recur ds cs)
 			 | Incomplete => (c, buffer) :: (recur ds cs)

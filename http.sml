@@ -1,39 +1,34 @@
 signature HTTP =
 sig
-    type Headers
-    type Parameters
     type Response
     type ResponseType
-    val response : ResponseType -> Headers -> string -> Response
+    val response : ResponseType -> (string * string) list -> string -> Response
     val parseRes : Word8ArraySlice.slice -> Response
     val resHeader : Response -> string -> string option
+    val body : Response -> string
     val sendRes : ('a,Socket.active Socket.stream) Socket.sock -> Response -> unit
 
     type Request
-    type Method
-    type Resource
-    val request : Method -> Resource -> Headers -> Parameters -> Request
+    val request : string -> string -> (string * string) list -> (string * string) list -> Request
     val parseReq : Word8ArraySlice.slice -> Request
     val sendReq : ('a,Socket.active Socket.stream) Socket.sock -> Request -> unit
     val header : Request -> string -> string option
     val param : Request -> string -> string option
     val mapParams : Request -> (string * string -> 'a) -> 'a list
     val addParam : Request -> string -> string -> Request
-    val method : Request -> Method
-    val resource : Request -> Resource
+    val method : Request -> string
+    val resource : Request -> string
 end
 
 structure BasicHTTP : HTTP =
 struct
   type ResponseType = string
-  type Method = string
-  type Resource = string
 
   type Response = { httpVersion : string, responseType : ResponseType,
 		    headers : (string * string) list, 
 		    body : string }
 
-  type Request = { method : Method, resource : Resource, httpVersion : string,
+  type Request = { method : string, resource : string, httpVersion : string,
 		   headers : (string * string) list, 
 		   parameters : (string * string) list }
   type Headers = (string * string) list
@@ -95,6 +90,9 @@ struct
       fun sendString sock str =
 	  Socket.sendVec (sock, Word8VectorSlice.full (Byte.stringToBytes str))
 
+      fun each f [] = ()
+	| each f (e::es) = (f e; each f es)
+
       fun sendLine sock ln = 
 	  let val snd = sendString sock
 	  in
@@ -109,14 +107,12 @@ struct
 	headers=headers, body=body
       }
   fun resHeader (res : Response) key = lookup key (#headers res)
+  fun body (res : Response) = #body res
 
   fun parseRes slc = 
-      let val (head, body) = case tokens "\r\n\r\n" slc of
-				 [h, b] => (h, b)
-			       | _ => raise Fail "Invalid response"
-	  val (req, headers) = case tokens "\r\n" head of
-				       (ln::lns) => (ln, lns)
-				     | _ => raise Fail "Invalid headers"
+      let val (req, headers) = case tokens "\r\n" slc of
+				   (ln::lns) => (ln, lns)
+				 | _ => raise Fail "Invalid request"
 	  val (version, rType) = case tokens " " req of
 				     (v::rest) => (v, rest)
 				   | _ => raise Fail "Invalid request line"
@@ -126,7 +122,7 @@ struct
 	  { 
 	    httpVersion= sliceToStr version, responseType= String.concatWith " " (map sliceToStr rType),
 	    headers = map (fn h => toHdr (tokens ": " h)) headers,
-	    body=sliceToStr body
+	    body=""
 	  }
       end
 

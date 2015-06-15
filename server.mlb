@@ -1,9 +1,8 @@
 local
     $(SML_LIB)/basis/basis.mlb
     buffer.sml
-    parser.sml
+    http.sml
     server.sml
-    router.sml
 in
     main.sml
 end

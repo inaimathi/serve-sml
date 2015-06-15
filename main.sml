@@ -1,12 +1,26 @@
-structure Server = SERVER (structure Buf = DefaultBuffer; structure Par = DefaultHTTPParser);
-structure Route = BASICROUTER(structure Serv = Server);
+structure Serv = SERVER (structure Buf = DefaultBuffer; structure Par = BasicHTTP);
+
+fun httpRes responseType extraHeaders body action = 
+    ({
+	httpVersion = "HTTP/1.1", responseType = responseType, 
+	headers = ("Content-Length", Int.toString (String.size body))::extraHeaders,
+	body = body
+    }, action)
+
+fun route f (request : Serv.Request) socket =
+    let val path = String.tokens (curry (op =) #"/") (Serv.resource request)
+	val (res, act) = f (Serv.method request) path (Serv.param request)
+    in
+	Serv.sendRes socket res;
+	act
+    end
 
 fun simpleRes resCode body =
-    Route.httpRes resCode [] body CLOSE;
+    httpRes resCode [] body CLOSE;
 
-fun ok body = Route.httpRes "200 Ok" [] body CLOSE;
-fun err400 body = Route.httpRes "404 Not Found" [] body CLOSE;
-fun err404 body = Route.httpRes "404 Not Found" [] body CLOSE;
+fun ok body = httpRes "200 Ok" [] body CLOSE;
+fun err400 body = httpRes "404 Not Found" [] body CLOSE;
+fun err404 body = httpRes "404 Not Found" [] body CLOSE;
 
 fun hello "GET" ["hello", name] _ = 
     ok ("Hello there, " ^ name ^ "! I'm a server!")
@@ -30,4 +44,4 @@ fun getPort (port::_) =
     end
   | getPort _ = 8181;
 
-Server.serve (getPort (CommandLine.arguments ())) (Route.route hello) ;
+Serv.serve (getPort (CommandLine.arguments ())) (route hello) ;
