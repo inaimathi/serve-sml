@@ -26,6 +26,8 @@
 
 ##### Items
 
+- Finish separating out the HTTP types and interactions into a separate struct
+	- This'll replace parse.sml, and should make interacting with the router a bit easier
 - Add age/length/retries restrictions to buffer struct/sig
 - Start thinking about the general handler structure
 	- routing needs to be handled (with path variables)
