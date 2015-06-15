@@ -1,5 +1,5 @@
 local
-    /usr/lib/mlton/sml/basis/basis.mlb
+    $(SML_LIB)/basis/basis.mlb
     buffer.sml
     parser.sml
     server.sml

@@ -12,15 +12,15 @@ fun hello "GET" ["hello", name] _ =
     ok ("Hello there, " ^ name ^ "! I'm a server!")
   | hello _ ("rest"::rest) _ =
     ok ("You asked for: " ^ (String.concatWith "/" rest) ^ "' ...")
-  | hello _ ["paramtest"] param =
+  | hello _ ["paramtest"] ps =
     let in
-	case (param "a", param "b") of
+	case (ps "a", ps "b") of
 	    (SOME a, SOME b) =>
 	    ok ("You sent me A: " ^ a ^ " and B: " ^ b ^ "...")
 	  | _ => err400 "Need both 'a' and 'b' parameters for this one."
     end
   | hello _ _ _ = 
-    err404 "Sorry; I don't know how to do that"
+    err404 "Sorry; I don't know how to do that";
 
 fun getPort (port::_) = 
     let fun p (SOME n) = n
