@@ -26,8 +26,12 @@
 
 ##### Items
 
-- Finish separating out the HTTP types and interactions into a separate struct
-	- This'll replace parse.sml, and should make interacting with the router a bit easier
+- Buffers should have options; either buffer to some terminator or a cerain number of bytes
+- We need a general way of putting things into the event loop
+	- Additional client connections from handlers
+	- Extra parse after body
+	- Initial parse after socket connect
+
 - Correct server behavior with regard to POST requests
 	- If there's a body, read it
 	- Do the appropriate thing depending on mimetype
