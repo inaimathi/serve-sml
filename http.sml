@@ -5,7 +5,7 @@ sig
     type Response
     type ResponseType
     val response : ResponseType -> Headers -> string -> Response
-    (* val parseRes : Word8VectorSlice.slice -> Response *)
+    val parseRes : Word8ArraySlice.slice -> Response
     val resHeader : Response -> string -> string option
     val sendRes : ('a,Socket.active Socket.stream) Socket.sock -> Response -> unit
 
@@ -110,7 +110,26 @@ struct
       }
   fun resHeader (res : Response) key = lookup key (#headers res)
 
-  (* fun parseRes slc = response "200 Ok" [] "ToDo" *)
+  fun parseRes slc = 
+      let val (head, body) = case tokens "\r\n\r\n" slc of
+				 [h, b] => (h, b)
+			       | _ => raise Fail "Invalid response"
+	  val (req, headers) = case tokens "\r\n" head of
+				       (ln::lns) => (ln, lns)
+				     | _ => raise Fail "Invalid headers"
+	  val (version, rType) = case tokens " " req of
+				     (v::rest) => (v, rest)
+				   | _ => raise Fail "Invalid request line"
+	  fun toHdr [k, v] = (sliceToStr k, sliceToStr v)
+	    | toHdr _ = raise Fail "Invalid header"
+      in 
+	  { 
+	    httpVersion= sliceToStr version, responseType= String.concatWith " " (map sliceToStr rType),
+	    headers = map (fn h => toHdr (tokens ": " h)) headers,
+	    body=sliceToStr body
+	  }
+      end
+
   fun sendRes sock {httpVersion, responseType, headers, body} =
       let fun ln lst = sendLine sock lst
       in 
