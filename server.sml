@@ -58,9 +58,15 @@ struct
 		| recur (d::ds) ((c,buffer,cb)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then case Buf.readInto buffer c of
-			   Complete => if CLOSE = cb buffer
-				       then (Socket.close c; recur ds cs)
-				       else (c, Buf.new 1000, cb) :: (recur ds cs)
+			   Complete => let val req = (Par.parseReq (Buf.toSlice buffer))
+				       in 
+					   (* TODO - Figure out how to buffer more, only the first time here.
+					             That way we can automatically read POST body in certain
+					             circumstances *)
+					   if CLOSE = cb req
+					   then (Socket.close c; recur ds cs)
+					   else (c, Buf.new 1000, cb) :: (recur ds cs)
+				       end
 			 | Incomplete => (c, buffer, cb) :: (recur ds cs)
 			 | Errored => (Socket.close c; recur ds cs)
 				      handle Fail _ => (Socket.close c; recur ds cs)
@@ -75,7 +81,7 @@ struct
 	  if Socket.sameDesc (d, Socket.sockDesc s)
 	  then let val c = fst (Socket.accept s)
 		   val buf = Buf.new 1000
-		   fun cb b = f (Par.parseReq (Buf.toSlice b)) c
+		   fun cb req = f req c
 	       in 
 		   (c, buf, cb) :: (processServers f ds ss)
 	       end
