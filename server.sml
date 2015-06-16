@@ -52,33 +52,34 @@ struct
   val sendReq = Par.sendReq
 
   local
-      fun processClients f descriptors sockBufferPairs =
+      fun processClients descriptors sockTrips =
 	  let fun recur _ [] = []
 		| recur [] rest = rest
-		| recur (d::ds) ((c,buffer)::cs) = 
+		| recur (d::ds) ((c,buffer,cb)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then case Buf.readInto buffer c of
-			   Complete => if CLOSE = f (Par.parseReq (Buf.toSlice buffer)) c
+			   Complete => if CLOSE = cb buffer
 				       then (Socket.close c; recur ds cs)
-				       else (c, Buf.new 1000) :: (recur ds cs)
-			 | Incomplete => (c, buffer) :: (recur ds cs)
+				       else (c, Buf.new 1000, cb) :: (recur ds cs)
+			 | Incomplete => (c, buffer, cb) :: (recur ds cs)
 			 | Errored => (Socket.close c; recur ds cs)
 				      handle Fail _ => (Socket.close c; recur ds cs)
-		  else (c, buffer) :: (recur (d::ds) cs)
+		  else (c, buffer, cb) :: (recur (d::ds) cs)
 	  in 
-	      recur descriptors sockBufferPairs
+	      recur descriptors sockTrips
 	  end
 
-      fun processServers _ [] = []
-	| processServers [] _ = []
-	| processServers (d::ds) (s::ss) = 
+      fun processServers _ _ [] = []
+	| processServers _ [] _ = []
+	| processServers f (d::ds) (s::ss) = 
 	  if Socket.sameDesc (d, Socket.sockDesc s)
 	  then let val c = fst (Socket.accept s)
 		   val buf = Buf.new 1000
+		   fun cb b = f (Par.parseReq (Buf.toSlice b)) c
 	       in 
-		   (c, buf) :: (processServers ds ss)
+		   (c, buf, cb) :: (processServers f ds ss)
 	       end
-	  else processServers (d::ds) ss
+	  else processServers f (d::ds) ss
 
       fun selecting server clients timeout =
 	  let val { rds, exs, wrs } = Socket.select {
@@ -91,9 +92,9 @@ struct
 	  handle x => (Socket.close server; raise x)
 
       fun acceptLoop serv clients serverFn =
-	  let val ready = selecting serv (map fst clients) NONE
-	      val newCs = processServers ready [serv]
-	      val next = processClients serverFn ready clients
+	  let val ready = selecting serv (map a_ clients) NONE
+	      val newCs = processServers serverFn ready [serv]
+	      val next = processClients ready clients
 	  in
 	      acceptLoop serv (newCs @ next) serverFn
 	  end
