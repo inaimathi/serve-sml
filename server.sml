@@ -1,16 +1,3 @@
-(* ***** Basic Utility *)
-fun fst (a, _) = a
-fun snd (_, b) = b
-
-fun a_ (a, _, _) = a
-fun b_ (_, b, _) = b
-fun c_ (_, _, c) = c
-
-fun curry f = fn a => fn b => f(a,b)
-
-fun each f [] = ()
-  | each f (e::es) = (f e; each f es)
-
 datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
 
 (* ***** Server core *)

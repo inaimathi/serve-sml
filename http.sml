@@ -43,15 +43,7 @@ struct
 				    andalso recur (i - 1)
 		  in 
 		      recur ((String.size str) - 1)
-		  end 
-
-      fun strToSlice str = (Word8ArraySlice.full (Word8Array.fromList (map (Word8.fromInt o Char.ord) (String.explode str))))
-      fun sliceToStr slice = 
-	  let val len = Word8ArraySlice.length slice
-	      fun f i = Char.chr (Word8.toInt (Word8ArraySlice.sub (slice, i)))
-	  in 
-	      String.implode (List.tabulate (len, f))
-	  end
+		  end
 
       fun tokens sep arr =
 	  let val lst = map (Word8.fromInt o Char.ord) (String.explode sep)

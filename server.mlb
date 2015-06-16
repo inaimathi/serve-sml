@@ -1,5 +1,6 @@
 local
     $(SML_LIB)/basis/basis.mlb
+    util.sml
     buffer.sml
     http.sml
     server.sml
