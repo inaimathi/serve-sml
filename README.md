@@ -26,26 +26,16 @@
 
 ##### Items
 
-- Buffers should have options; either buffer to some terminator or a cerain number of bytes
-- We need a general way of putting things into the event loop
-	- Additional client connections from handlers
-	- Extra parse after body
-	- Initial parse after socket connect
-
-- Correct server behavior with regard to POST requests
-	- If there's a body, read it
-	- Do the appropriate thing depending on mimetype
-		- parse `application/json`
-		- destructure and add to parameters if `application/x-www-form-urlencoded`
-		- not *entirely* sure how to deal with `multipart/form-data`. It's [pretty complicated](www.w3.org/TR/html401/interact/forms.html#h-17.13.4) apparently, and it'll only really be used in situations where large files are sloshing around. You don't necessarily want all of it in memory for those situations. Maybe `readBody` is a reasonable thing?
-			- Looks like we'll want buffers to be a bit more complex. Keep a callback around to deal with whatever happens when the buffer "completes"? What would that look like?
 - Add age/length/retries restrictions to buffer struct/sig
+- Start URI decoding parameters
+- Think about how to do `application/json` and `multipart/form-data` parsing for POST bodies
 - Start thinking about the general handler structure
 	- routing needs to be handled (with path variables)
 	- defining handlers needs to be handled (hehe). Including
 		- setting headers,
 		- setting response type
 		- sending a body easily (take a string, compute length from it, attach the header if not otherwise provided and send out the response)
+- Deal elegantly with making requests from handler bodies
 
 ##### Relevant Musings
 
