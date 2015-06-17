@@ -1,5 +1,7 @@
 structure Serv = SERVER (structure Buf = DefaultBuffer; structure Par = BasicHTTP);
 
+(* curl -d "a=foo&b=bar" localhost:8787/paramtest *)
+
 fun httpRes responseType extraHeaders body action = 
     ({
 	httpVersion = "HTTP/1.1", responseType = responseType, 
@@ -16,11 +18,11 @@ fun route f (request : Serv.Request) socket =
     end
 
 fun simpleRes resCode body =
-    httpRes resCode [] body CLOSE;
+    httpRes resCode [] body Serv.CLOSE;
 
-fun ok body = httpRes "200 Ok" [] body CLOSE;
-fun err400 body = httpRes "404 Not Found" [] body CLOSE;
-fun err404 body = httpRes "404 Not Found" [] body CLOSE;
+fun ok body = httpRes "200 Ok" [] body Serv.CLOSE;
+fun err400 body = httpRes "404 Not Found" [] body Serv.CLOSE;
+fun err404 body = httpRes "404 Not Found" [] body Serv.CLOSE;
 
 fun hello "GET" ["hello", name] _ = 
     ok ("Hello there, " ^ name ^ "! I'm a server!")

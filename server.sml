@@ -1,8 +1,6 @@
-datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
-
-(* ***** Server core *)
 signature HTTPSERVER =
 sig
+    datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
     type Request
     val serve : int -> (Request -> (INetSock.inet,Socket.active Socket.stream) Socket.sock -> SockAction) -> 'u
 
@@ -23,6 +21,7 @@ end
 
 functor SERVER (structure Buf : BUFFER; structure Par : HTTP) : HTTPSERVER =
 struct
+  datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
   type Request = Par.Request
   val header = Par.header
   val param = Par.param
