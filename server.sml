@@ -39,15 +39,29 @@ struct
   val sendReq = Par.sendReq
 
   local
-      datatype ReqState = INITIAL_READ | BODY_READ
+      datatype ReqState = INITIAL_READ | BODY_READ of Request
 
-      fun processRequest (c, req, state, cb) =
-	  (* TODO - Figure out how to buffer more, only the first time here.
-		    That way we can automatically read POST body in certain
-		    circumstances *)
-	  if CLOSE = cb req
-	  then NONE
-	  else SOME (c, Buf.new 1000, INITIAL_READ, cb)
+      fun completeRequest c req cb=
+	  case cb req of
+	      CLOSE => NONE
+	    | _ => SOME (c, Buf.new 1000, INITIAL_READ, cb)
+
+      fun processRequest (c, slc, INITIAL_READ, cb) =
+	  let val req = Par.parseReq slc
+	      fun complete () = completeRequest c req cb
+	  in 
+	      case (Par.method req, Par.header req "Content-Type", Par.header req "Content-Length") of
+		  ("POST", SOME "application/x-www-form-urlencoded", SOME ct) =>
+		  (case Int.fromString ct of
+		       NONE => complete ()
+		     | SOME n => SOME (c, Buf.newStatic n, BODY_READ req, cb))
+		| _ => complete ()
+	  end
+	| processRequest (c, slc, BODY_READ saved, cb) = 
+	  let val params = Par.parseParams slc 
+	  in 
+	      completeRequest c (Par.addParams saved params) cb
+	  end
 
       fun processClients descriptors sockTuples =
 	  let fun recur _ [] = []
@@ -55,7 +69,7 @@ struct
 		| recur (d::ds) ((c,buffer,state,cb)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then case Buf.readInto buffer c of
-			   Complete => (case processRequest (c, (Par.parseReq (Buf.toSlice buffer)), state, cb) of
+			   Complete => (case processRequest (c, Buf.toSlice buffer, state, cb) of
 					    SOME tup => tup :: (recur ds cs)
 					  | NONE => (Socket.close c; recur ds cs) )
 			 | Incomplete => (c, buffer, state, cb) :: (recur ds cs)

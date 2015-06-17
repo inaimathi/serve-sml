@@ -10,12 +10,14 @@ sig
 
     type Request
     val request : string -> string -> (string * string) list -> (string * string) list -> Request
+    val parseParams : Word8ArraySlice.slice -> (string * string) list
     val parseReq : Word8ArraySlice.slice -> Request
     val sendReq : ('a,Socket.active Socket.stream) Socket.sock -> Request -> unit
     val header : Request -> string -> string option
     val param : Request -> string -> string option
     val mapParams : Request -> (string * string -> 'a) -> 'a list
     val addParam : Request -> string -> string -> Request
+    val addParams : Request -> (string * string) list -> Request
     val method : Request -> string
     val resource : Request -> string
 end
@@ -61,14 +63,6 @@ struct
 					     else recur mark (i+1) lst acc
 	  in 
 	      recur 0 0 lst []
-	  end
-
-      fun parseParams slc =
-	  let val pairs = tokens "&" slc
-  	      fun toPair [k, v] = (sliceToStr k, sliceToStr v)
-  		| toPair _ = raise Fail "Invalid parameter"
-	  in
-  	      map (toPair o tokens "=") pairs
 	  end
 
       fun lookup _ [] = NONE
@@ -141,9 +135,20 @@ struct
   fun addParam {method, resource, httpVersion, headers, parameters } k v =
       { method=method, resource=resource, httpVersion=httpVersion,
 	headers=headers, parameters= (k, v)::parameters}
+  fun addParams {method, resource, httpVersion, headers, parameters } ps =
+      { method=method, resource=resource, httpVersion=httpVersion,
+	headers=headers, parameters= ps @ parameters}
 
   fun method (req : Request) = #method req
   fun resource (req : Request) = #resource req
+
+  fun parseParams slc =
+      let val pairs = tokens "&" slc
+  	  fun toPair [k, v] = (sliceToStr k, sliceToStr v)
+  	    | toPair _ = raise Fail "Invalid parameter"
+      in
+  	  map (toPair o tokens "=") pairs
+      end
 
   fun parseReq slc =
       let val (req, rest) = case tokens "\r\n" slc of
