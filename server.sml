@@ -39,27 +39,31 @@ struct
   val sendReq = Par.sendReq
 
   local
-      fun processClients descriptors sockTrips =
+      datatype ReqState = INITIAL_READ | BODY_READ
+
+      fun processRequest (c, req, state, cb) =
+	  (* TODO - Figure out how to buffer more, only the first time here.
+		    That way we can automatically read POST body in certain
+		    circumstances *)
+	  if CLOSE = cb req
+	  then NONE
+	  else SOME (c, Buf.new 1000, INITIAL_READ, cb)
+
+      fun processClients descriptors sockTuples =
 	  let fun recur _ [] = []
 		| recur [] rest = rest
-		| recur (d::ds) ((c,buffer,cb)::cs) = 
+		| recur (d::ds) ((c,buffer,state,cb)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then case Buf.readInto buffer c of
-			   Complete => let val req = (Par.parseReq (Buf.toSlice buffer))
-				       in 
-					   (* TODO - Figure out how to buffer more, only the first time here.
-					             That way we can automatically read POST body in certain
-					             circumstances *)
-					   if CLOSE = cb req
-					   then (Socket.close c; recur ds cs)
-					   else (c, Buf.new 1000, cb) :: (recur ds cs)
-				       end
-			 | Incomplete => (c, buffer, cb) :: (recur ds cs)
+			   Complete => (case processRequest (c, (Par.parseReq (Buf.toSlice buffer)), state, cb) of
+					    SOME tup => tup :: (recur ds cs)
+					  | NONE => (Socket.close c; recur ds cs) )
+			 | Incomplete => (c, buffer, state, cb) :: (recur ds cs)
 			 | Errored => (Socket.close c; recur ds cs)
 				      handle Fail _ => (Socket.close c; recur ds cs)
-		  else (c, buffer, cb) :: (recur (d::ds) cs)
+		  else (c, buffer, state, cb) :: (recur (d::ds) cs)
 	  in 
-	      recur descriptors sockTrips
+	      recur descriptors sockTuples
 	  end
 
       fun processServers _ _ [] = []
@@ -70,7 +74,7 @@ struct
 		   val buf = Buf.new 1000
 		   fun cb req = f req c
 	       in 
-		   (c, buf, cb) :: (processServers f ds ss)
+		   (c, buf, INITIAL_READ, cb) :: (processServers f ds ss)
 	       end
 	  else processServers f (d::ds) ss
 
@@ -85,7 +89,7 @@ struct
 	  handle x => (Socket.close server; raise x)
 
       fun acceptLoop serv clients serverFn =
-	  let val ready = selecting serv (map a_ clients) NONE
+	  let val ready = selecting serv (map (fn (a, _, _, _) => a) clients) NONE
 	      val newCs = processServers serverFn ready [serv]
 	      val next = processClients ready clients
 	  in
