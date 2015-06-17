@@ -7,7 +7,6 @@ signature BUFFER =
       val newStatic : int -> Buffer
       val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> BufferStatus
       val toSlice : Buffer -> Word8ArraySlice.slice
-      val printBuffer : Buffer -> unit
   end 
 
 structure DefaultBuffer : BUFFER =
@@ -37,12 +36,12 @@ structure DefaultBuffer : BUFFER =
   fun readInto (buffer : Buffer) sock = 
       let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!(#buf buffer), !(#fill buffer), SOME 1))
       in 
+	  if i = NONE then () else (#fill buffer := (!(#fill buffer) + 1));
 	  if done buffer
 	  then Complete
 	  else case i of
 		   NONE => Incomplete
-		 | SOME n => (#fill buffer := (!(#fill buffer) + n);
-			      if isFull buffer then grow buffer else ();
+		 | SOME n => (if isFull buffer then grow buffer else ();
 			      readInto buffer sock)
       end
       handle _ => Errored
@@ -57,19 +56,5 @@ structure DefaultBuffer : BUFFER =
       { fill= ref 0, buf= ref (Word8Array.array (initSize, Word8.fromInt 0)), done_p=crlfx2 }
 
   fun toSlice {fill, buf, done_p} = Word8ArraySlice.slice (!buf, 0, SOME (!fill))
-
-  fun printBuffer (buffer : Buffer) =
-      let fun printByte bt = 
-	      let val chr = (Char.chr (Word8.toInt bt))
-	      in 
-		  print (Char.toString chr);
-		  if chr = #"\n" then print "\n   " else print "";
-		  ()
-	      end 
-      in
-	  print "\n   ";
-	  Word8ArraySlice.app printByte (toSlice buffer);
-	  ()
-      end
   end
 end
