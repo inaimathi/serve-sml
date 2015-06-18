@@ -79,17 +79,21 @@ struct
 	      recur descriptors sockTuples
 	  end
 
-      fun processServers _ _ [] = []
-	| processServers _ [] _ = []
-	| processServers f (d::ds) (s::ss) = 
-	  if Socket.sameDesc (d, Socket.sockDesc s)
-	  then let val c = fst (Socket.accept s)
-		   val buf = Buf.new 1000
-		   fun cb req = f req c
-	       in 
-		   (c, buf, INITIAL_READ, cb) :: (processServers f ds ss)
-	       end
-	  else processServers f (d::ds) ss
+      fun processServers f descs socks =
+	  let fun recur ds [] newClients = (ds, newClients)
+		| recur [] _ newClients = ([], newClients)
+		| recur (d::ds) (s::ss) newClients = 
+		  if Socket.sameDesc (d, Socket.sockDesc s)
+		  then let val c = fst (Socket.accept s)
+			   val buf = Buf.new 1000
+			   fun cb req = f req c
+		       in 
+			   recur ds ss ((c, buf, INITIAL_READ, cb)::newClients)
+		       end
+		  else recur (d::ds) ss newClients
+	  in 
+	      recur descs socks []
+	  end
 
       fun selecting server clients timeout =
 	  let val { rds, exs, wrs } = Socket.select {
@@ -103,8 +107,8 @@ struct
 
       fun acceptLoop serv clients serverFn =
 	  let val ready = selecting serv (map (fn (a, _, _, _) => a) clients) NONE
-	      val newCs = processServers serverFn ready [serv]
-	      val next = processClients ready clients
+	      val (stillReady, newCs) = processServers serverFn ready [serv]
+	      val next = processClients stillReady clients
 	  in
 	      acceptLoop serv (newCs @ next) serverFn
 	  end
