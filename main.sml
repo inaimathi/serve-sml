@@ -27,7 +27,7 @@ fun err404 body = httpRes "404 Not Found" [] body Serv.CLOSE;
 fun hello "GET" ["hello", name] _ = 
     ok ("Hello there, " ^ name ^ "! I'm a server!")
   | hello _ ("rest"::rest) _ =
-    ok ("You asked for: " ^ (String.concatWith "/" rest) ^ "' ...")
+    ok ("You asked for: '" ^ (String.concatWith " :: " rest) ^ "' ...")
   | hello _ ["paramtest"] ps =
     let in
 	case (ps "a", ps "b") of
