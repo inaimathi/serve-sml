@@ -1,6 +1,6 @@
 structure Serv = SERVER (structure Buf = DefaultBuffer; structure Par = BasicHTTP);
 
-(* curl -d "a=foo&b=bar" localhost:8787/paramtest *)
+(* curl -d "a=foo&b=bar" localhost:8787/params *)
 
 fun httpRes responseType extraHeaders body action = 
     ({
@@ -28,7 +28,7 @@ fun hello "GET" ["hello", name] _ =
     ok ("Hello there, " ^ name ^ "! I'm a server!")
   | hello _ ("rest"::rest) _ =
     ok ("You asked for: '" ^ (String.concatWith " :: " rest) ^ "' ...")
-  | hello _ ["paramtest"] ps =
+  | hello _ ["params"] ps =
     let in
 	case (ps "a", ps "b") of
 	    (SOME a, SOME b) =>

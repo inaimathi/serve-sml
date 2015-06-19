@@ -21,6 +21,8 @@ structure DefaultBuffer : BUFFER =
 
       fun done {fill, buf, done_p, started, retries} = done_p (!fill) (!buf)
 
+      fun ageOf {fill, buf, done_p, started, retries} = Time.- (Time.now (), started)
+
       fun crlfx2 fill buf = 
 	  let fun chk c i = (Word8.fromInt (Char.ord c)) = (Word8Array.sub (buf, fill - i))
 	  in 
@@ -46,7 +48,7 @@ structure DefaultBuffer : BUFFER =
 	  if i = NONE then () else (fill := (!fill + 1));
 	  if done buffer
 	  then Complete
-	  else if ((!fill) > MAX_SIZE)
+	  else if ((!fill) > MAX_SIZE) orelse (Time.> (ageOf buffer, MAX_AGE))
 	  then Errored
 	  else case i of
 		   NONE => Incomplete
