@@ -39,12 +39,15 @@ structure DefaultBuffer : BUFFER =
 	  end
   in 
 
-  fun readInto (buffer : Buffer) sock = 
-      let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!(#buf buffer), !(#fill buffer), SOME 1))
+  fun readInto buffer sock = 
+      let val {fill, buf, done_p, started, retries} = buffer
+	  val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!buf, !fill, SOME 1))
       in 
-	  if i = NONE then () else (#fill buffer := (!(#fill buffer) + 1));
+	  if i = NONE then () else (fill := (!fill + 1));
 	  if done buffer
 	  then Complete
+	  else if ((!fill) > MAX_SIZE)
+	  then Errored
 	  else case i of
 		   NONE => Incomplete
 		 | SOME n => (if isFull buffer then grow buffer else ();
