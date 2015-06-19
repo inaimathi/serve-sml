@@ -43,7 +43,7 @@ struct
       fun completeRequest c req cb=
 	  case cb req of
 	      CLOSE => NONE
-	    | _ => SOME (c, Buf.new 1000, INITIAL_READ, cb)
+	    | _ => SOME (c, Buf.new (), INITIAL_READ, cb)
 
       fun processRequest (c, slc, INITIAL_READ, cb) =
 	  let val req = Par.parseReq slc
@@ -85,7 +85,7 @@ struct
 		| recur (d::ds) (s::ss) newClients = 
 		  if Socket.sameDesc (d, Socket.sockDesc s)
 		  then let val c = fst (Socket.accept s)
-			   val buf = Buf.new 1000
+			   val buf = Buf.new ()
 			   fun cb req = f req c
 		       in 
 			   recur ds ss ((c, buf, INITIAL_READ, cb)::newClients)
