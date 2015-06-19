@@ -1,8 +1,7 @@
 signature HTTP =
 sig
     type Response
-    type ResponseType
-    val response : ResponseType -> (string * string) list -> string -> Response
+    val response : string -> (string * string) list -> string -> Response
     val parseRes : Word8ArraySlice.slice -> Response
     val resHeader : Response -> string -> string option
     val body : Response -> string
@@ -24,9 +23,7 @@ end
 
 structure BasicHTTP : HTTP =
 struct
-  type ResponseType = string
-
-  type Response = { httpVersion : string, responseType : ResponseType,
+  type Response = { httpVersion : string, responseType : string,
 		    headers : (string * string) list, 
 		    body : string }
 

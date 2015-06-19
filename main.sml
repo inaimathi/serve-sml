@@ -10,7 +10,9 @@ fun httpRes responseType extraHeaders body action =
     }, action)
 
 fun route f (request : Serv.Request) socket =
-    let val path = String.tokens (curry (op =) #"/") (Serv.resource request)
+    let val path = case String.fields (curry (op =) #"/") (Serv.resource request) of
+		       (""::rest) => rest
+		     | p => p
 	val (res, act) = f (Serv.method request) path (Serv.param request)
     in
 	Serv.sendRes socket res;

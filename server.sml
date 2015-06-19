@@ -2,8 +2,7 @@ signature HTTPSERVER =
 sig
     datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
     type Request
-    val serve : int -> (Request -> (INetSock.inet,Socket.active Socket.stream) Socket.sock -> SockAction) -> 'u
-
+    val request : string -> string -> (string * string) list -> (string * string) list -> Request
     val header : Request -> string -> string option
     val param : Request -> string -> string option
     val mapParams : Request -> (string * string -> 'a) -> 'a list
@@ -12,9 +11,11 @@ sig
     val resource : Request -> string
 
     type Response
+    val response : string -> (string * string) list -> string -> Response
     val resHeader : Response -> string -> string option
     val body : Response -> string
 
+    val serve : int -> (Request -> (INetSock.inet,Socket.active Socket.stream) Socket.sock -> SockAction) -> 'u
     val sendRes : ('a,Socket.active Socket.stream) Socket.sock -> Response -> unit
     val sendReq : ('a,Socket.active Socket.stream) Socket.sock -> Request -> unit
 end
@@ -23,6 +24,7 @@ functor SERVER (structure Buf : BUFFER; structure Par : HTTP) : HTTPSERVER =
 struct
   datatype SockAction = CLOSE | LEAVE_OPEN | KEEP_LISTENING
   type Request = Par.Request
+  val request = Par.request
   val header = Par.header
   val param = Par.param
   val mapParams = Par.mapParams
@@ -31,6 +33,7 @@ struct
   val resource = Par.resource
 
   type Response = Par.Response
+  val response = Par.response
   val resHeader = Par.resHeader
   val body = Par.body
 

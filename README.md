@@ -26,7 +26,7 @@
 
 ##### Items
 
-- Add age/length/retries restrictions to buffer struct/sig
+- Do a cleanup round
 - Start URI decoding parameters
 - Think about how to do `application/json` and `multipart/form-data` parsing for POST bodies
 - Start thinking about the general handler structure
