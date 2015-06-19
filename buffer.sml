@@ -1,8 +1,7 @@
-datatype BufferStatus = Complete | Incomplete | Errored | Dead
-
 signature BUFFER =
   sig
       type Buffer
+      datatype BufferStatus = Complete | Incomplete | Errored | Dead
       val new : unit -> Buffer
       val newStatic : int -> Buffer
       val readInto : Buffer -> ('a,Socket.active Socket.stream) Socket.sock -> BufferStatus
@@ -13,6 +12,7 @@ structure DefaultBuffer : BUFFER =
   struct 
   type Buffer = { fill : int ref, buf : Word8Array.array ref, done_p: (int -> Word8Array.array -> bool)
 		  , started : Time.time, tries : int ref}
+  datatype BufferStatus = Complete | Incomplete | Errored | Dead
   local 
       val INIT_SIZE = 1000
       val MAX_SIZE = 50000

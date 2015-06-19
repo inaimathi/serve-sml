@@ -68,12 +68,12 @@ struct
 		| recur (d::ds) ((c,buffer,state,cb)::cs) = 
 		  if Socket.sameDesc (d, Socket.sockDesc c)
 		  then (case Buf.readInto buffer c of
-			    Complete => (case processRequest (c, Buf.toSlice buffer, state, cb) of
+			    Buf.Complete => (case processRequest (c, Buf.toSlice buffer, state, cb) of
 					     SOME tup => tup :: (recur ds cs)
 					   | NONE => (Socket.close c; recur ds cs) )
-			  | Incomplete => (c, buffer, state, cb) :: (recur ds cs)
-			  | Errored => (Socket.close c; recur ds cs) (* Should send 400 here *)
-			  | Dead => (Socket.close c; recur ds cs))
+			  | Buf.Incomplete => (c, buffer, state, cb) :: (recur ds cs)
+			  | Buf.Errored => (Socket.close c; recur ds cs) (* Should send 400 here *)
+			  | Buf.Dead => (Socket.close c; recur ds cs))
 		       handle Fail _ => (Socket.close c; recur ds cs)
 		  else (c, buffer, state, cb) :: (recur (d::ds) cs)
 	  in 
