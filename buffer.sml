@@ -1,4 +1,4 @@
-datatype BufferStatus = Complete | Incomplete | Errored
+datatype BufferStatus = Complete | Incomplete | Errored | Dead
 
 signature BUFFER =
   sig
@@ -41,26 +41,26 @@ structure DefaultBuffer : BUFFER =
 	  end
   in 
 
-  fun readinto buffer sock = 
+  fun readInto buffer sock = 
       let val {fill, buf, done_p, started, tries} = buffer
 	  fun recur () =
-	      let val i = socket.recvarrnb (sock, word8arrayslice.slice (!buf, !fill, some 1))
+	      let val i = Socket.recvArrNB (sock, Word8ArraySlice.slice (!buf, !fill, SOME 1))
 	      in 
-		  if i = none then () else (fill := (!fill + 1));
+		  if i = NONE then () else (fill := (!fill + 1));
 		  if done buffer
-		  then complete
-		  else if (!fill > max_size) orelse (time.> (ageof buffer, max_age)) orelse (!tries > max_tries)
-		  then errored
+		  then Complete
+		  else if (!fill > MAX_SIZE) orelse (Time.> (ageOf buffer, MAX_AGE)) orelse (!tries > MAX_TRIES)
+		  then Errored
 		  else case i of
-			   none => incomplete
-			 | some n => (if isfull buffer then grow buffer else ();
+			   NONE => Incomplete
+			 | SOME n => (if isFull buffer then grow buffer else ();
 				      recur ())
 	      end
       in 
 	  tries := (!tries + 1);
 	  recur ()
       end
-      handle _ => Errored
+      handle _ => Dead
 
   fun newStatic size =
       let fun done f b = f = (Word8Array.length b)
